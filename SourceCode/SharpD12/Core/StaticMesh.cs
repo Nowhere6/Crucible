@@ -4,6 +4,9 @@ using SharpDX.DXGI;
 namespace SharpD12
 {
   using SharpDX.Direct3D12;
+  using System;
+  using System.Collections.Generic;
+  using System.IO;
 
   public class StaticMesh
   {
@@ -96,6 +99,43 @@ namespace SharpD12
         20,21,23,21,22,23,
       };
 
+      return new StaticMesh(device, ref v, ref i);
+    }
+
+    public static StaticMesh LoadOBJ(Device device, string name)
+    {
+      var reader = new StreamReader(PathHelper.GetPath(name));
+      List<Vertex> vertices = new List<Vertex>();
+      List<uint> indices = new List<uint>();
+      while (!reader.EndOfStream)
+      {
+        string line = reader.ReadLine();
+        if (line.StartsWith("v"))
+        {
+          string[] value = line.Split(' ');
+          Vertex vert = new Vertex();
+          vert.position.X = float.Parse(value[1]) * 10;
+          vert.position.Y = float.Parse(value[2]) * 10;
+          vert.position.Z = float.Parse(value[3]) * 10;
+          vert.uv.X = vert.position.X;
+          vert.uv.Y = -vert.position.Z;
+          vertices.Add(vert);
+        }
+        else if (line.StartsWith("f"))
+        {
+          string[] value = line.Split(' ');
+          indices.Add(UInt32.Parse(value[1]) - 1);
+          indices.Add(UInt32.Parse(value[2]) - 1);
+          indices.Add(UInt32.Parse(value[3]) - 1);
+        }
+        else
+        {
+          continue;
+        }
+      }
+      reader.Dispose();
+      Vertex[] v = vertices.ToArray();
+      uint[] i = indices.ToArray();
       return new StaticMesh(device, ref v, ref i);
     }
   }

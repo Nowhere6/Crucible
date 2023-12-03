@@ -200,7 +200,8 @@ namespace SharpD12
       var renderItem = new RenderItem();
       renderItems.Add(renderItem);
       renderItem.objectConst = new ObjectConstants { world = Matrix.Identity };
-      renderItem.mesh = StaticMesh.CreateBox(dx12Device, 1, 1, 1);
+      //renderItem.mesh = StaticMesh.CreateBox(dx12Device, 1, 1, 1);
+      renderItem.mesh = StaticMesh.LoadOBJ(dx12Device, @"Models\stanford-bunny.obj");
 
       // Create object cbv.
       foreach (int frameIndex in Enumerable.Range(0, SwapChainSize))
