@@ -17,8 +17,7 @@ namespace SharpD12
     /// </summary>
     public const FeatureLevel DX12FeatureLevel = FeatureLevel.Level_11_0;
 
-    public static readonly Color4 CleanColor = new Color4(0.38f, 0.4f, 0.4f, 0f);
-    public static readonly Vector4 CleanColorV = new Vector4(0.38f, 0.4f, 0.4f, 0f);
+    public static readonly Color4 CleanColor = new Color4(0.2f, 0.2f, 0.21f, 0f);
     
     public const float GameUnit2Meter = 1000f;
 

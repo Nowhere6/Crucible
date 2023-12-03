@@ -164,7 +164,7 @@ namespace SharpD12
     static byte DecodeSRGB(byte value)
     {
       float output = (float)value / byte.MaxValue;
-      output = output <= 0.04045f ? output / 12.92f : MathF.Pow(((output + 0.055f) / 1.055f), 2.4f);
+      output = MathF.Pow(((output + 0.055f) / 1.055f), 2.4f);
       output = MathF.Round(output * byte.MaxValue);
       return (byte)output;
     }

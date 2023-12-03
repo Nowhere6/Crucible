@@ -34,3 +34,11 @@ cbuffer cbPass : register(b1)
 };
 
 Texture2D texAlbedo : register(t0);
+
+float4 EncodeSRGB(float4 color)
+{
+  float4 result;
+  result.rgb =  1.055*pow(color.rgb, 1.0/2.4) - 0.055;
+  result.a = color.a;
+  return result;
+}

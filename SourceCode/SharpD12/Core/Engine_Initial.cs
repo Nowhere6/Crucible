@@ -97,7 +97,7 @@ namespace SharpD12
       FrameResource.dsvDescHeap = dx12Device.CreateDescriptorHeap(dsvHeapDesc);
 
       // Create RTV and command allocator.
-      var rtvDesc = new RenderTargetViewDescription { Format = Format.R8G8B8A8_UNorm_SRgb, Dimension = RenderTargetViewDimension.Texture2D };
+      var rtvDesc = new RenderTargetViewDescription { Format = Format.R8G8B8A8_UNorm, Dimension = RenderTargetViewDimension.Texture2D };
       foreach (int i in Enumerable.Range(0, SwapChainSize))
       {
         frames[i] = new FrameResource();
@@ -181,7 +181,7 @@ namespace SharpD12
         PixelShader = ps,
         SampleMask = ~0,
       };
-      psoDesc.RenderTargetFormats[0] = Format.R8G8B8A8_UNorm_SRgb;
+      psoDesc.RenderTargetFormats[0] = Format.R8G8B8A8_UNorm;
       //psoDesc.RasterizerState.FillMode = FillMode.Wireframe;
       //psoDesc.RasterizerState.CullMode = CullMode.None;
       pso = dx12Device.CreateGraphicsPipelineState(psoDesc);
@@ -189,7 +189,7 @@ namespace SharpD12
 
     void LoadTextures()
     {
-      TextureManager.LoadPNG(dx12Device, PathHelper.GetPath(@"Textures\Tex64.png"), "DefaultTexture");
+      TextureManager.LoadPNG(dx12Device, PathHelper.GetPath(@"Textures\Default.png"), "DefaultTexture");
     }
 
     void BuildRenderItems()
