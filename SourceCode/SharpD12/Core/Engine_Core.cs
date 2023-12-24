@@ -33,8 +33,6 @@ namespace SharpD12
     List<RenderItem> renderItems;
     CommandQueue commandQueue;
     GraphicsCommandList cmdList;
-    RootSignature rootSignature;
-    PipelineState pso;
 
     ViewportF viewPort;
     Rectangle scissorRectangle;
@@ -160,7 +158,7 @@ namespace SharpD12
     void PopulateCommandList()
     {
       frames[currFrameIdx].cmdAllocator.Reset();
-      cmdList.Reset(frames[currFrameIdx].cmdAllocator, pso);
+      cmdList.Reset(frames[currFrameIdx].cmdAllocator, PSO.GetPSO(PSOType.PLACEHOLDER));
 
       // setup viewport and scissors
       cmdList.SetViewport(viewPort);
@@ -169,25 +167,25 @@ namespace SharpD12
       // Use barrier to notify that we are using the RenderTarget to clear it
       cmdList.ResourceBarrierTransition(frames[currFrameIdx].backBuffer, ResourceStates.Present, ResourceStates.RenderTarget);
 
-      cmdList.ClearRenderTargetView(frames[currFrameIdx].rtvHandle, CleanColor);
+      cmdList.ClearRenderTargetView(frames[currFrameIdx].backBufferHandle, CleanColor);
       cmdList.ClearDepthStencilView(FrameResource.dsvHandle, ClearFlags.FlagsDepth, 1.0f, 0);
 
-      cmdList.SetRenderTargets(new CpuDescriptorHandle[] { frames[currFrameIdx].rtvHandle }, FrameResource.dsvHandle);
-      cmdList.SetDescriptorHeaps(FrameResource.cbvSrvUavDescHeap);
-      cmdList.SetGraphicsRootSignature(rootSignature);
-      cmdList.SetGraphicsRootDescriptorTable(1, frames[currFrameIdx].passGpuHandle);
+      cmdList.SetRenderTargets(new CpuDescriptorHandle[] { frames[currFrameIdx].backBufferHandle }, FrameResource.dsvHandle);
+      cmdList.SetDescriptorHeaps(FrameResource.srvDescHeap);
+      cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
+      cmdList.SetGraphicsRootSignature(PSO.GetRootSign(PSOType.PLACEHOLDER));
+      cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(currFrameIdx));
 
       // Update default heaps.
       DefaultHeapManager.UpdateAll(cmdList);
 
       // Draw render items.
       int itemCount = renderItems.Count;
-      foreach (int i in Enumerable.Range(0, itemCount))
+      foreach (int index in Enumerable.Range(0, itemCount))
       {
-        var item = renderItems[i];
-        cmdList.SetGraphicsRootDescriptorTable(0, frames[currFrameIdx].objectGpuHandle0 + i * CBVSRVUAVSize);
+        var item = renderItems[index];
+        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.objectBuffer.GetGPUAddress(currFrameIdx * MaxRenderItems + index));
         cmdList.SetGraphicsRootDescriptorTable(2, TextureManager.textures["DefaultTexture"].gpuDescriptor);
-        cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
         cmdList.SetVertexBuffer(0, item.mesh.vertexBufferView);
         cmdList.SetIndexBuffer(item.mesh.indexBufferView);
         cmdList.DrawIndexedInstanced(item.mesh.IndexCount, 1, 0, 0, 0);

@@ -103,9 +103,9 @@ namespace SharpD12
       {
         frames[i] = new FrameResource();
         frames[i].backBuffer = swapChain.GetBackBuffer<Resource>(i);
-        frames[i].rtvHandle = FrameResource.rtvDescHeap.CPUDescriptorHandleForHeapStart + i * RTVSize;
+        frames[i].backBufferHandle = FrameResource.rtvDescHeap.CPUDescriptorHandleForHeapStart + i * RTVSize;
         frames[i].cmdAllocator = dx12Device.CreateCommandAllocator(CommandListType.Direct);
-        dx12Device.CreateRenderTargetView(frames[i].backBuffer, rtvDesc, frames[i].rtvHandle);
+        dx12Device.CreateRenderTargetView(frames[i].backBuffer, rtvDesc, frames[i].backBufferHandle);
       }
 
       // Create depth buffer and DSV.
@@ -126,66 +126,13 @@ namespace SharpD12
       // Build cbv/srv/uav descriptor heap.
       var heapType = DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView;
       var cbvHeapDesc = new DescriptorHeapDescription { Type = heapType, DescriptorCount = (1 + MaxRenderItems) * SwapChainSize + 1, Flags = DescriptorHeapFlags.ShaderVisible };
-      FrameResource.cbvSrvUavDescHeap = dx12Device.CreateDescriptorHeap(cbvHeapDesc);
+      FrameResource.srvDescHeap = dx12Device.CreateDescriptorHeap(cbvHeapDesc);
 
       // Create constant buffer and pass cbv.
       FrameResource.passBuffer = new UploadBuffer<PassConstants>(dx12Device, SwapChainSize, true);
       FrameResource.objectBuffer = new UploadBuffer<ObjectConstants>(dx12Device, MaxRenderItems * SwapChainSize, true);
-      var CpuHandle0 = FrameResource.cbvSrvUavDescHeap.CPUDescriptorHandleForHeapStart;
-      var GpuHandle0 = FrameResource.cbvSrvUavDescHeap.GPUDescriptorHandleForHeapStart;
-      foreach (int i in Enumerable.Range(0, SwapChainSize))
-      {
-        frames[i].passCpuHandle = CpuHandle0 + i * CBVSRVUAVSize;
-        frames[i].passGpuHandle = GpuHandle0 + i * CBVSRVUAVSize;
-        frames[i].objectCpuHandle0 = CpuHandle0 + SwapChainSize * CBVSRVUAVSize + i * MaxRenderItems * CBVSRVUAVSize;
-        frames[i].objectGpuHandle0 = GpuHandle0 + SwapChainSize * CBVSRVUAVSize + i * MaxRenderItems * CBVSRVUAVSize;
-        var passCbvDesc = new ConstantBufferViewDescription { BufferLocation = FrameResource.passBuffer.GetGPUAddress(i), SizeInBytes = FrameResource.passBuffer.ElementSize };
-        dx12Device.CreateConstantBufferView(passCbvDesc, frames[i].passCpuHandle);
-      }
 
-      // Create root signature. Root parameter is the smallest unit when update.
-      var cbvTablePerPass = new DescriptorRange(DescriptorRangeType.ConstantBufferView, 1, 0);
-      var cbvTablePerObject = new DescriptorRange(DescriptorRangeType.ConstantBufferView, 1, 1);
-      var srvTable = new DescriptorRange(DescriptorRangeType.ShaderResourceView, 1, 0);
-      var rootParams = new RootParameter[]
-      {
-        new RootParameter(ShaderVisibility.Vertex, new DescriptorRange[] { cbvTablePerPass }),
-        new RootParameter(ShaderVisibility.Vertex, new DescriptorRange[] { cbvTablePerObject }),
-        new RootParameter(ShaderVisibility.Pixel, new DescriptorRange[] { srvTable })
-      };
-      var rootSignatureDesc = new RootSignatureDescription(RootSignatureFlags.AllowInputAssemblerInputLayout, rootParams, StandardSampler.value);
-      rootSignature = dx12Device.CreateRootSignature(rootSignatureDesc.Serialize());
-
-      // Shaders and input layout.
-      string shaderDir = PathHelper.GetPath("Shaders");
-      string shaderLoc = Path.Combine(shaderDir, "NoLit.hlsl");
-      var shaderFlags = SharpDX.D3DCompiler.ShaderFlags.PackMatrixRowMajor | SharpDX.D3DCompiler.ShaderFlags.Debug;
-      var effectFlags = SharpDX.D3DCompiler.EffectFlags.None;
-      var include = new HLSLInclude(shaderDir);
-      var vs = new ShaderBytecode(SharpDX.D3DCompiler.ShaderBytecode.CompileFromFile(shaderLoc, "VS", "vs_5_0", shaderFlags, effectFlags, null, include));
-      var ps = new ShaderBytecode(SharpDX.D3DCompiler.ShaderBytecode.CompileFromFile(shaderLoc, "PS", "ps_5_0", shaderFlags, effectFlags, null, include));
-
-      // Build pso.
-      var psoDesc = new GraphicsPipelineStateDescription()
-      {
-        DepthStencilState = DepthStencilStateDescription.Default(),
-        RasterizerState = RasterizerStateDescription.Default(),
-        PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
-        SampleDescription = new SampleDescription(1, 0),
-        BlendState = BlendStateDescription.Default(),
-        StreamOutput = new StreamOutputDescription(),
-        InputLayout = StandardInputLayout.value,
-        DepthStencilFormat = Format.D32_Float,
-        RootSignature = rootSignature,
-        RenderTargetCount = 1,
-        VertexShader = vs,
-        PixelShader = ps,
-        SampleMask = ~0,
-      };
-      psoDesc.RenderTargetFormats[0] = Format.R8G8B8A8_UNorm;
-      //psoDesc.RasterizerState.FillMode = FillMode.Wireframe;
-      //psoDesc.RasterizerState.CullMode = CullMode.None;
-      pso = dx12Device.CreateGraphicsPipelineState(psoDesc);
+      PSO.ReInitialize(dx12Device, PathHelper.GetPath("Shaders"));
     }
 
     void LoadTextures()
@@ -196,6 +143,7 @@ namespace SharpD12
     void BuildRenderItems()
     {
       renderItems = new List<RenderItem>();
+      renderItems.Capacity = MaxRenderItems;
 
       // Create one render item.
       var renderItem = new RenderItem();
@@ -203,22 +151,6 @@ namespace SharpD12
       renderItem.objectConst = new ObjectConstants { world = Matrix.Identity };
       //renderItem.mesh = StaticMesh.CreateBox(dx12Device, 1, 1, 1);
       renderItem.mesh = StaticMesh.LoadOBJ(dx12Device, @"Models\stanford-bunny.obj");
-
-      // Create object cbv.
-      foreach (int frameIndex in Enumerable.Range(0, SwapChainSize))
-      {
-        foreach (int itemIndex in Enumerable.Range(0, renderItems.Count))
-        {
-          CpuDescriptorHandle currentHandle = frames[frameIndex].objectCpuHandle0 + itemIndex * CBVSRVUAVSize;
-          long gpuAddr = FrameResource.objectBuffer.GetGPUAddress(frameIndex * MaxRenderItems + itemIndex);
-          var cbvDesc = new ConstantBufferViewDescription()
-          {
-            BufferLocation = gpuAddr,
-            SizeInBytes = FrameResource.objectBuffer.ElementSize
-          };
-          dx12Device.CreateConstantBufferView(cbvDesc, currentHandle);
-        }
-      }
     }
   }
 }

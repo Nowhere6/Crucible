@@ -150,9 +150,9 @@ namespace SharpD12
         Dimension = ShaderResourceViewDimension.Texture2D,
         Texture2D = { MipLevels = mips }
       };
-      device.CreateShaderResourceView(texture.buffer.defaultHeap, desc, FrameResource.cbvSrvUavDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize);
-      texture.cpuDescriptor = FrameResource.cbvSrvUavDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize;
-      texture.gpuDescriptor = FrameResource.cbvSrvUavDescHeap.GPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize;
+      device.CreateShaderResourceView(texture.buffer.defaultHeap, desc, FrameResource.srvDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize);
+      texture.cpuDescriptor = FrameResource.srvDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize;
+      texture.gpuDescriptor = FrameResource.srvDescHeap.GPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize;
       textures.Add(name, texture);
     }
 
@@ -172,7 +172,7 @@ namespace SharpD12
 
   public static class StandardSampler
   {
-    public static StaticSamplerDescription[] value = new StaticSamplerDescription[]
+    public static readonly StaticSamplerDescription[] value = new StaticSamplerDescription[]
       {
         new StaticSamplerDescription() // Point-Clamp (Post-processing)
         {
