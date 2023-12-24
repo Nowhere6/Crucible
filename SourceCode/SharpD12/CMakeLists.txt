@@ -10,6 +10,7 @@ set(NUGET_REF "
   SharpDX.Direct3D12_4.2.0;
   SharpDX.Desktop_4.2.0;
   SharpDX.Direct2D1_4.2.0;
+  RawInput.Sharp_0.1.3;
 ")
 
 set_property(TARGET SharpD12 PROPERTY VS_PACKAGE_REFERENCES ${NUGET_REF})

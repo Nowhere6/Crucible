@@ -17,7 +17,7 @@ namespace SharpD12
 
   public partial class SD12Engine
   {
-    public SD12Engine(RenderForm form)
+    public SD12Engine(CustomedForm form)
     {
       this.form = form; 
       this.width = form.Width;
@@ -29,6 +29,7 @@ namespace SharpD12
     void EngineInitialize()
     {
       CreateDX12BaseObjects();
+      form.InputEvent += GameInput.InputProcess;
       syncEventHandle = syncEvent.SafeWaitHandle.DangerousGetHandle();
       RTVSize = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
       DSVSize = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.DepthStencilView);

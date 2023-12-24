@@ -7,6 +7,7 @@ using System.Windows.Input;
 
 namespace SharpD12
 {
+  using Linearstar.Windows.RawInput;
   using SharpDX.Direct3D12;
   using SharpDX.Windows;
   using System.Collections.Generic;
@@ -21,7 +22,7 @@ namespace SharpD12
     Vector3 cameraPos = new Vector3(-3, 3, -3);
     Vector3 cameraZAxis = new Vector3(1, -1, 1);
     CursorScreenPos currMousePos;
-    RenderForm form;
+    CustomedForm form;
 
     int width;
     int height;
