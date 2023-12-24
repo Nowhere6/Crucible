@@ -1,5 +1,4 @@
 #include "Shared.hlsl"
-// mtx = matrix
 
 VertexOut VS(VertexIn vin)
 {

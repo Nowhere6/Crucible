@@ -1,3 +1,5 @@
+// mtx = matrix
+
 struct VertexIn
 {
   float3 pL : POSITION;
