@@ -17,8 +17,9 @@ namespace SharpD12
 
   public partial class SD12Engine
   {
-    readonly Stopwatch clock;
-    readonly Stopwatch deltaclock;
+    readonly Stopwatch gameClock;
+    float lastTime = 0;
+
     Vector3 cameraPos = new Vector3(-3, 3, -3);
     Vector3 cameraZAxis = new Vector3(1, -1, 1);
     CursorScreenPos currMousePos;
@@ -76,6 +77,22 @@ namespace SharpD12
 
     void Update()
     {
+      // Update time.
+      float deltaTime = 0;
+      if(gameClock.IsRunning)
+      {
+        float currentTime = gameClock.ElapsedMilliseconds * 0.001f;
+        deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+      }
+      else
+      {
+        gameClock.Start();
+      }
+
+      // Update input.
+      Input.PostProcess();
+
       // Update render items.
       int itemCount = renderItems.Count;
       foreach (int i in Enumerable.Range(0, itemCount))
@@ -89,32 +106,29 @@ namespace SharpD12
         }
       }
 
-      UpdateDummyCamera();
+      UpdateDummyCamera(deltaTime);
       Matrix view = SharpDX.Matrix.LookAtLH(cameraPos, cameraPos + cameraZAxis, Vector3.Up);
       Matrix proj = SharpDX.Matrix.PerspectiveFovLH(MathUtil.DegreesToRadians(60), (float)width / (float)height, 0.1f, 100f);
       var passConst = new PassConstants { viewProj = Matrix.Multiply(view, proj) };
       FrameResource.passBuffer.Write(currFrameIdx, ref passConst);
     }
 
-    void UpdateDummyCamera()
+    void UpdateDummyCamera(float deltaTime)
     {
-      if (!deltaclock.IsRunning)
-      {
-        deltaclock.Restart();
-        return;
-      }
-
-      float deltaTime = (float)deltaclock.Elapsed.TotalSeconds;
       cameraZAxis = Vector3.Normalize(cameraZAxis);
       Vector3 moveVec = Vector3.Zero;
-      if (Keyboard.IsKeyDown(Key.W))
+      if (Input.GetKey(Keys.W))
         moveVec += cameraZAxis;
-      if (Keyboard.IsKeyDown(Key.S))
+      if (Input.GetKey(Keys.S))
         moveVec -= cameraZAxis;
-      if (Keyboard.IsKeyDown(Key.A))
+      if (Input.GetKey(Keys.A))
         moveVec -= Vector3.Normalize(Vector3.Cross(Vector3.Up, cameraZAxis));
-      if (Keyboard.IsKeyDown(Key.D))
+      if (Input.GetKey(Keys.D))
         moveVec += Vector3.Normalize(Vector3.Cross(Vector3.Up, cameraZAxis));
+      if (Input.GetKey(Keys.ControlKey))
+        moveVec -= Vector3.Up;
+        if (Input.GetKey(Keys.Space))
+        moveVec += Vector3.Up;
       moveVec = Vector3.Normalize(moveVec);
       cameraPos += moveVec * deltaTime * 4;
 
@@ -137,7 +151,6 @@ namespace SharpD12
       }
       currMousePos = pos;
       //currMousePos = Mouse.GetPosition;
-      deltaclock.Restart();
     }
 
     void Render()

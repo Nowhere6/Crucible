@@ -17,6 +17,5 @@ set_property(TARGET SharpD12 PROPERTY VS_PACKAGE_REFERENCES ${NUGET_REF})
 
 set_target_properties(SharpD12 PROPERTIES
   WIN32_EXECUTABLE true
-  VS_GLOBAL_UseWPF true
   VS_GLOBAL_UseWindowsForms true
 )

@@ -5,8 +5,6 @@ namespace SharpD12
 {
   public class FrameResource
   {
-    public PassConstants passConst;
-
     public long fenceValue = 0;
     public CommandAllocator cmdAllocator;
     public Resource backBuffer;

@@ -15,13 +15,13 @@ namespace SharpD12
 
     protected override void WndProc(ref Message m)
     {
+      base.WndProc(ref m);
       const int WM_INPUT = 0x00FF;
       if (m.Msg == WM_INPUT)
       {
         var data = RawInputData.FromHandle(m.LParam);
         InputEvent?.Invoke(data);
       }
-      base.WndProc(ref m);
     }
   }
 
@@ -40,17 +40,19 @@ namespace SharpD12
       form.Height = height;
       form.AllowUserResizing = false;
       form.Text = "SharpD12";
+      
       try
       {
-        RawInputDevice.RegisterDevice(HidUsageAndPage.Keyboard, RawInputDeviceFlags.ExInputSink | RawInputDeviceFlags.NoLegacy, form.Handle);
+        Input.Register(form.Handle);
         var engine = new SD12Engine(form);
         engine.Run();
       }
       catch (Exception ex)
       {
-        RawInputDevice.UnregisterDevice(HidUsageAndPage.Keyboard);
         MessageBox.Show(ex.ToString(), "Fatal Error", MessageBoxButtons.OK);
       }
+      
+      Input.UnRegister();
     }
   }
 }

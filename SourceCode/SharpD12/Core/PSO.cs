@@ -3,7 +3,6 @@ using SharpDX.Direct2D1;
 using SharpDX.Direct3D12;
 using SharpDX.DXGI;
 using System.Collections.Generic;
-using System.Windows.Documents;
 using static SharpDX.DirectWrite.GdiInterop;
 using System.IO;
 using SharpDX.D3DCompiler;

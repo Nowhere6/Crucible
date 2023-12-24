@@ -12,7 +12,6 @@ namespace SharpD12
   using SharpDX.Windows;
   using System.Collections.Generic;
   using System.IO;
-  using System.Windows.Media.Imaging;
   using static ProgramDefinedConstants;
 
   public partial class SD12Engine
@@ -22,14 +21,13 @@ namespace SharpD12
       this.form = form; 
       this.width = form.Width;
       this.height = form.Height;
-      clock = Stopwatch.StartNew();
-      deltaclock = new Stopwatch();
+      gameClock = new Stopwatch();
     }
 
     void EngineInitialize()
     {
       CreateDX12BaseObjects();
-      form.InputEvent += GameInput.InputProcess;
+      form.InputEvent += Input.PerMessageProcess;
       syncEventHandle = syncEvent.SafeWaitHandle.DangerousGetHandle();
       RTVSize = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
       DSVSize = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.DepthStencilView);
