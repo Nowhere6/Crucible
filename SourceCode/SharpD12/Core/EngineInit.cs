@@ -1,9 +1,7 @@
 ﻿using SharpDX;
 using SharpDX.DXGI;
-using System;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Windows.Forms;
 
 namespace SharpD12
@@ -21,33 +19,26 @@ namespace SharpD12
       this.form = form; 
       this.width = form.Width;
       this.height = form.Height;
-      gameClock = new Stopwatch();
-    }
-
-    void EngineInitialize()
-    {
-      CreateDX12BaseObjects();
       form.InputEvent += Input.PerMessageProcess;
       syncEventHandle = syncEvent.SafeWaitHandle.DangerousGetHandle();
-      RTVSize = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
-      DSVSize = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.DepthStencilView);
-      CBVSRVUAVSize = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
-      CreateFrames();
-      PiplelineConfig();
-      LoadTextures();
-      BuildRenderItems();
+      viewPort = new ViewportF(0, 0, width, height);
+      scissorRectangle = new Rectangle(0, 0, width, height);
+      CreateDX12Device();
+      fence = dx12Device.CreateFence(0, FenceFlags.None);
+      rtv_size = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
+      dsv_size = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.DepthStencilView);
+      csu_size = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
     }
 
     /// <summary>
     /// Create dx12 fundamental objects.
     /// </summary>
-    void CreateDX12BaseObjects()
+    void CreateDX12Device()
     {
 #if DEBUG
       // Enable the D3D12 debug layer.
       DebugInterface.Get().EnableDebugLayer();
 #endif
-      var factory = new Factory4();
       try
       {
         try
@@ -65,6 +56,19 @@ namespace SharpD12
         MessageBox.Show("Can't create ID3D12Device with warp neither! Game exits.", "Fatal Error", MessageBoxButtons.OK);
         System.Environment.Exit(-1);
       }
+    }
+
+    void EngineInitialize()
+    {
+      CreateQueueAndChain();
+      CreateFrames();
+      PiplelineConfig();
+      LoadTextures();
+      BuildRenderItems();
+    }
+
+    void CreateQueueAndChain()
+    {
       commandQueue = dx12Device.CreateCommandQueue(new CommandQueueDescription(CommandListType.Direct));
       var description = new SwapChainDescription()
       {
@@ -78,11 +82,6 @@ namespace SharpD12
         ModeDescription = new ModeDescription(Format.R8G8B8A8_UNorm),
       };
       swapChain = new SwapChain(factory, commandQueue, description);
-      Utilities.Dispose<Factory4>(ref factory);
-
-      viewPort = new ViewportF(0, 0, width, height);
-      scissorRectangle = new Rectangle(0, 0, width, height);
-      fence = dx12Device.CreateFence(0, FenceFlags.None);
     }
 
     void CreateFrames()

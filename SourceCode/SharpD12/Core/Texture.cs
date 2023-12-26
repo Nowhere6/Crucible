@@ -149,9 +149,9 @@ namespace SharpD12
         Dimension = ShaderResourceViewDimension.Texture2D,
         Texture2D = { MipLevels = mips }
       };
-      device.CreateShaderResourceView(texture.buffer.defaultHeap, desc, FrameResource.srvDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize);
-      texture.cpuDescriptor = FrameResource.srvDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize;
-      texture.gpuDescriptor = FrameResource.srvDescHeap.GPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CBVSRVUAVSize;
+      device.CreateShaderResourceView(texture.buffer.defaultHeap, desc, FrameResource.srvDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CSUSize);
+      texture.cpuDescriptor = FrameResource.srvDescHeap.CPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CSUSize;
+      texture.gpuDescriptor = FrameResource.srvDescHeap.GPUDescriptorHandleForHeapStart + (MaxRenderItems + 1) * SwapChainSize * SD12Engine.CSUSize;
       textures.Add(name, texture);
     }
 

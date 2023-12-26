@@ -3,11 +3,9 @@ using SharpDX.DXGI;
 using System;
 using System.Diagnostics;
 using System.Threading;
-using System.Windows.Input;
 
 namespace SharpD12
 {
-  using Linearstar.Windows.RawInput;
   using SharpDX.Direct3D12;
   using SharpDX.Windows;
   using System.Collections.Generic;
@@ -17,7 +15,7 @@ namespace SharpD12
 
   public partial class SD12Engine
   {
-    readonly Stopwatch gameClock;
+    readonly Stopwatch gameClock = new Stopwatch();
     float lastTime = 0;
     float deltaTime = 0;
 
@@ -34,6 +32,7 @@ namespace SharpD12
     List<RenderItem> renderItems;
     CommandQueue commandQueue;
     GraphicsCommandList cmdList;
+    Factory4 factory = new Factory4();
 
     bool vSyncEnabled = true;
     ViewportF viewPort;
@@ -42,9 +41,13 @@ namespace SharpD12
     long currFenceValue = 1; // Fence value when current frame completed.
     AutoResetEvent syncEvent = new AutoResetEvent(false);
     IntPtr syncEventHandle;
-    public static int RTVSize;
-    public static int DSVSize;
-    public static int CBVSRVUAVSize;
+    private static int rtv_size;
+    private static int dsv_size;
+    private static int csu_size;
+    public static int RTVSize { get => rtv_size; }
+    public static int DSVSize { get => dsv_size; }
+    /// <summary> size of CBV SRV UAV </summary>
+    public static int CSUSize { get => csu_size; }
 
     public void Run()
     {

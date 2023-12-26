@@ -5,26 +5,6 @@ using Linearstar.Windows.RawInput;
 using SharpDX.Windows;
 namespace SharpD12
 {
-  public class CustomedForm : RenderForm
-  {
-    public CustomedForm() : base() { }
-
-    public delegate void InputAction(RawInputData msg);
-
-    public event InputAction InputEvent;
-
-    protected override void WndProc(ref Message m)
-    {
-      base.WndProc(ref m);
-      const int WM_INPUT = 0x00FF;
-      if (m.Msg == WM_INPUT)
-      {
-        var data = RawInputData.FromHandle(m.LParam);
-        InputEvent?.Invoke(data);
-      }
-    }
-  }
-
   static class Program
   {
     /// <summary>
@@ -49,6 +29,26 @@ namespace SharpD12
       catch (Exception ex)
       {
         MessageBox.Show(ex.ToString(), "Fatal Error", MessageBoxButtons.OK);
+      }
+    }
+  }
+
+  public class CustomedForm : RenderForm
+  {
+    public CustomedForm() : base() { }
+
+    public delegate void InputAction(RawInputData msg);
+
+    public event InputAction InputEvent;
+
+    protected override void WndProc(ref Message m)
+    {
+      base.WndProc(ref m);
+      const int WM_INPUT = 0x00FF;
+      if (m.Msg == WM_INPUT)
+      {
+        var data = RawInputData.FromHandle(m.LParam);
+        InputEvent?.Invoke(data);
       }
     }
   }

@@ -1,37 +1,10 @@
-﻿using Accessibility;
-using SharpDX.D3DCompiler;
+﻿using SharpDX.D3DCompiler;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 
 namespace SharpD12
 {
-  /// <summary>
-  /// Help D3DCompiler to open HLSL header.<br/>
-  /// Only support relative location for "#include" currently.
-  /// </summary>
-  public class HLSLInclude : SharpDX.D3DCompiler.Include
-  {
-    string rootDir;
-
-    public IDisposable Shadow { get; set; }
-
-    public HLSLInclude(string rootFolder) => rootDir = rootFolder;
-
-    ~HLSLInclude() => Dispose();
-
-    public void Close(Stream stream) => stream?.Dispose();
-
-    public void Dispose() => Shadow?.Dispose();
-
-    public Stream Open(IncludeType type, string fileName, Stream parentStream)
-    {
-      string includeDir = Path.Combine(rootDir, fileName);
-      return new FileStream(includeDir, FileMode.Open, FileAccess.Read);
-    }
-  }
-
   /// <summary>
   /// Native pointer wrapper class, <b>should free GC handle manually by call Free().</b>
   /// </summary>

@@ -1,12 +1,10 @@
-using SharpDX;
-using SharpDX.Direct2D1;
 using SharpDX.Direct3D12;
 using SharpDX.DXGI;
 using System.Collections.Generic;
-using static SharpDX.DirectWrite.GdiInterop;
 using System.IO;
 using SharpDX.D3DCompiler;
 using ShaderBytecode = SharpDX.Direct3D12.ShaderBytecode;
+using System;
 
 namespace SharpD12
 {
@@ -91,6 +89,31 @@ namespace SharpD12
       psoDesc.RenderTargetFormats[0] = Format.R8G8B8A8_UNorm;
       PipelineState pso = dx12Device.CreateGraphicsPipelineState(psoDesc);
       configs.Add(new PipelineConfig { pso = pso, rootSign = rootSignature });
+    }
+  }
+
+  /// <summary>
+  /// Help D3DCompiler to open HLSL header.<br/>
+  /// Only support relative location for "#include" currently.
+  /// </summary>
+  public class HLSLInclude : SharpDX.D3DCompiler.Include
+  {
+    string rootDir;
+
+    public IDisposable Shadow { get; set; }
+
+    public HLSLInclude(string rootFolder) => rootDir = rootFolder;
+
+    ~HLSLInclude() => Dispose();
+
+    public void Close(Stream stream) => stream?.Dispose();
+
+    public void Dispose() => Shadow?.Dispose();
+
+    public Stream Open(IncludeType type, string fileName, Stream parentStream)
+    {
+      string includeDir = Path.Combine(rootDir, fileName);
+      return new FileStream(includeDir, FileMode.Open, FileAccess.Read);
     }
   }
 }
