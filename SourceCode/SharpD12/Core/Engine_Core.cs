@@ -35,6 +35,7 @@ namespace SharpD12
     CommandQueue commandQueue;
     GraphicsCommandList cmdList;
 
+    bool vSyncEnabled = true;
     ViewportF viewPort;
     Rectangle scissorRectangle;
     int currFrameIdx = 0;
@@ -160,7 +161,7 @@ namespace SharpD12
       // Execute the command list
       commandQueue.ExecuteCommandList(cmdList);
       // Swap the back and front buffers
-      swapChain.Present(0, PresentFlags.AllowTearing);
+      swapChain.Present(vSyncEnabled ? 1 : 0, vSyncEnabled ? PresentFlags.None : PresentFlags.AllowTearing);
       // Fence synchrony
       FenceSync_MultipleBuffers();
     }
