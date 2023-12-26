@@ -7,19 +7,6 @@ using System.Windows.Forms;
 
 namespace SharpD12
 {
-  public partial class SD12Engine
-  {
-    [DllImport("User32.dll")]
-    static extern int GetCursorPos(ref CursorScreenPos pos);
-
-    struct CursorScreenPos
-    {
-      public int x;
-      public int y;
-      public static CursorScreenPos operator -(CursorScreenPos a, CursorScreenPos b) => new CursorScreenPos { x = a.x - b.x, y = a.y - b.y };
-    }
-  }
-
   /// <summary>
   /// Help D3DCompiler to open HLSL header.<br/>
   /// Only support relative location for "#include" currently.

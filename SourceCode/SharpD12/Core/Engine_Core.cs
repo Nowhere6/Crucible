@@ -19,10 +19,10 @@ namespace SharpD12
   {
     readonly Stopwatch gameClock;
     float lastTime = 0;
+    float deltaTime = 0;
 
     Vector3 cameraPos = new Vector3(-3, 3, -3);
     Vector3 cameraZAxis = new Vector3(1, -1, 1);
-    CursorScreenPos currMousePos;
     CustomedForm form;
 
     int width;
@@ -56,6 +56,7 @@ namespace SharpD12
       Stopwatch titleTimer = new Stopwatch();
       titleTimer.Start();
 
+      Input.Register(form.Handle);
       var loop = new RenderLoop(form);
       while (loop.NextFrame())
       {
@@ -73,14 +74,21 @@ namespace SharpD12
         Update();
         Render();
       }
+      Input.UnRegister();
       loop.Dispose();
     }
 
     void Update()
     {
-      // Update time.
-      float deltaTime = 0;
-      if(gameClock.IsRunning)
+      UpdateTimer();
+      Input.Update();
+      UpdateRenderItems();
+      UpdateDummyCamera();
+    }
+
+    void UpdateTimer()
+    {
+      if (gameClock.IsRunning)
       {
         float currentTime = gameClock.ElapsedMilliseconds * 0.001f;
         deltaTime = currentTime - lastTime;
@@ -90,11 +98,10 @@ namespace SharpD12
       {
         gameClock.Start();
       }
+    }
 
-      // Update input.
-      Input.PostProcess();
-
-      // Update render items.
+    void UpdateRenderItems()
+    {
       int itemCount = renderItems.Count;
       foreach (int i in Enumerable.Range(0, itemCount))
       {
@@ -106,16 +113,11 @@ namespace SharpD12
           FrameResource.objectBuffer.Write(elementIndex, ref item.objectConst);
         }
       }
-
-      UpdateDummyCamera(deltaTime);
-      Matrix view = SharpDX.Matrix.LookAtLH(cameraPos, cameraPos + cameraZAxis, Vector3.Up);
-      Matrix proj = SharpDX.Matrix.PerspectiveFovLH(MathUtil.DegreesToRadians(60), (float)width / (float)height, 0.1f, 100f);
-      var passConst = new PassConstants { viewProj = Matrix.Multiply(view, proj) };
-      FrameResource.passBuffer.Write(currFrameIdx, ref passConst);
     }
 
-    void UpdateDummyCamera(float deltaTime)
+    void UpdateDummyCamera()
     {
+      // Keyboard
       cameraZAxis = Vector3.Normalize(cameraZAxis);
       Vector3 moveVec = Vector3.Zero;
       if (Input.GetKey(Keys.W))
@@ -133,13 +135,12 @@ namespace SharpD12
       moveVec = Vector3.Normalize(moveVec);
       cameraPos += moveVec * deltaTime * 4;
 
-      var pos = new CursorScreenPos();
-      GetCursorPos(ref pos);
-      if ((Control.MouseButtons & MouseButtons.Right) == MouseButtons.Right)
+      // Mouse
+      if (Input.GetButton(MiceButton.RIGHT))
       {
-        var mouseDelta = pos - currMousePos;
-        float deltaYaw = MathUtil.DegreesToRadians(mouseDelta.x) * 0.2f;
-        float deltaPitch = MathUtil.DegreesToRadians(mouseDelta.y) * 0.2f;
+        var mouseOffset = Input.MouseOffset;
+        float deltaYaw = MathUtil.DegreesToRadians(mouseOffset.X) * 0.2f;
+        float deltaPitch = MathUtil.DegreesToRadians(mouseOffset.Y) * 0.2f;
         var currentPitch = MathF.Acos(Vector3.Dot(cameraZAxis, Vector3.Up));
         deltaPitch = MathUtil.Clamp(deltaPitch, MathUtil.DegreesToRadians(15) - currentPitch, MathUtil.DegreesToRadians(180 - 15) - currentPitch);
         Matrix.RotationY(deltaYaw, out var rotationYaw);
@@ -150,8 +151,11 @@ namespace SharpD12
         zAxis = Vector4.Transform(zAxis, rotationYaw);
         cameraZAxis = (Vector3)zAxis;
       }
-      currMousePos = pos;
-      //currMousePos = Mouse.GetPosition;
+
+      Matrix view = SharpDX.Matrix.LookAtLH(cameraPos, cameraPos + cameraZAxis, Vector3.Up);
+      Matrix proj = SharpDX.Matrix.PerspectiveFovLH(MathUtil.DegreesToRadians(60), (float)width / (float)height, 0.1f, 100f);
+      var passConst = new PassConstants { viewProj = Matrix.Multiply(view, proj) };
+      FrameResource.passBuffer.Write(currFrameIdx, ref passConst);
     }
 
     void Render()

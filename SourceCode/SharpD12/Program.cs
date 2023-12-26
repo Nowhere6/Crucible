@@ -43,7 +43,6 @@ namespace SharpD12
       
       try
       {
-        Input.Register(form.Handle);
         var engine = new SD12Engine(form);
         engine.Run();
       }
@@ -51,8 +50,6 @@ namespace SharpD12
       {
         MessageBox.Show(ex.ToString(), "Fatal Error", MessageBoxButtons.OK);
       }
-      
-      Input.UnRegister();
     }
   }
 }
