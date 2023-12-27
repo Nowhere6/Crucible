@@ -1,10 +1,11 @@
 ﻿using SharpDX;
+using static SharpD12.AppConstants;
 
 namespace SharpD12
 {
   public class RenderItem
   {
-    public short dirtyFrameCount = 3;
+    public short dirtyFrameCount = SwapChainSize;
 
     // Object constants.
     public ObjectConstants objectConst;

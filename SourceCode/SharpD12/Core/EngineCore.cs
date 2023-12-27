@@ -11,7 +11,7 @@ namespace SharpD12
   using System.Collections.Generic;
   using System.Linq;
   using System.Windows.Forms;
-  using static ProgramDefinedConstants;
+  using static AppConstants;
 
   public partial class SD12Engine
   {

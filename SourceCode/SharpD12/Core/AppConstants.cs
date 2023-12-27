@@ -3,7 +3,7 @@ using SharpDX.Direct3D;
 
 namespace SharpD12
 {
-  public static class ProgramDefinedConstants
+  public static class AppConstants
   {
     /// <summary>
     /// Best anisotropy level value that is good for both performance and quality.

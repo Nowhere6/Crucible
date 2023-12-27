@@ -10,7 +10,7 @@ namespace SharpD12
   using SharpDX.Windows;
   using System.Collections.Generic;
   using System.IO;
-  using static ProgramDefinedConstants;
+  using static AppConstants;
 
   public partial class SD12Engine
   {
@@ -47,7 +47,7 @@ namespace SharpD12
         }
         catch
         {
-          MessageBox.Show("Can't create ID3D12Device for GPU. Use warp instead.", "Fatal Error", MessageBoxButtons.OK);
+          MessageBox.Show("Can't create ID3D12Device for GPU, use warp instead.", "Fatal Error", MessageBoxButtons.OK);
           dx12Device = new Device(factory.GetWarpAdapter(), DX12FeatureLevel);
         }
       }

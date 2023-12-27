@@ -15,7 +15,7 @@ namespace SharpD12
   using SharpDX.Mathematics.Interop;
   using SharpDX.WIC;
   using System.Windows.Forms;
-  using static ProgramDefinedConstants;
+  using static AppConstants;
   public class Texture
   {
     public int widthPixels { get; private set; }
@@ -196,7 +196,7 @@ namespace SharpD12
           Filter = Filter.Anisotropic,
           AddressUVW = TextureAddressMode.Wrap,
           ShaderVisibility = ShaderVisibility.All,
-          MaxAnisotropy = ProgramDefinedConstants.AnisotropyLevel
+          MaxAnisotropy = AppConstants.AnisotropyLevel
         }
       };
   }
