@@ -33,18 +33,18 @@ namespace SharpD12
     private static Vector2 mouseOffset = Vector2.Zero;
     private static float lastWheelOffset = 0;
     private static float wheelOffset = 0;
-    private static Dictionary<MiceButton, State> prevMouseStates = new Dictionary<MiceButton, State>();
-    private static Dictionary<MiceButton, State> mouseStates = new Dictionary<MiceButton, State>();
-    private static Dictionary<Keys, State> prevKeyStates = new Dictionary<Keys, State>();
-    private static Dictionary<Keys, State> keyStates = new Dictionary<Keys, State>();
+    private static Dictionary<MiceButton, State> prevMice = new Dictionary<MiceButton, State>();
+    private static Dictionary<MiceButton, State> currMice = new Dictionary<MiceButton, State>();
+    private static Dictionary<Keys, State> prevKeys = new Dictionary<Keys, State>();
+    private static Dictionary<Keys, State> currKeys = new Dictionary<Keys, State>();
 
     static Input()
     {
       var miceButtons = Enum.GetValues<MiceButton>();
       foreach (var button in miceButtons)
       {
-        prevMouseStates.Add(button, State.NOT_PRESSED);
-        mouseStates.Add(button, State.NOT_PRESSED);
+        prevMice.Add(button, State.NOT_PRESSED);
+        currMice.Add(button, State.NOT_PRESSED);
       }
     }
 
@@ -61,24 +61,24 @@ namespace SharpD12
       RawInputDevice.UnregisterDevice(HidUsageAndPage.Mouse);
     }
 
-    public static bool GetKeyNotPressed(Keys key) => keyStates.ContainsKey(key) ? keyStates[key] == State.NOT_PRESSED : true;
+    public static bool GetKeyNotPressed(Keys key) => currKeys.ContainsKey(key) ? currKeys[key] == State.NOT_PRESSED : true;
 
-    public static bool GetKeyPressed(Keys key) => keyStates.ContainsKey(key) ? keyStates[key] == State.PRESSED : false;
+    public static bool GetKeyPressed(Keys key) => currKeys.ContainsKey(key) ? currKeys[key] == State.PRESSED : false;
 
-    public static bool GetKeyDown(Keys key) => keyStates.ContainsKey(key) ? keyStates[key] == State.DOWN : false;
+    public static bool GetKeyDown(Keys key) => currKeys.ContainsKey(key) ? currKeys[key] == State.DOWN : false;
 
-    public static bool GetKeyUp(Keys key) => keyStates.ContainsKey(key) ? keyStates[key] == State.UP : false;
+    public static bool GetKeyUp(Keys key) => currKeys.ContainsKey(key) ? currKeys[key] == State.UP : false;
 
     /// <summary> <b>бя Recommanded</b><br/>Is that key preseed down or pressed? </summary>
     public static bool GetKey(Keys key) => GetKeyPressed(key) || GetKeyDown(key);
 
-    public static bool GetButtonNotPressed(MiceButton button) => mouseStates[button] == State.NOT_PRESSED;
+    public static bool GetButtonNotPressed(MiceButton button) => currMice[button] == State.NOT_PRESSED;
 
-    public static bool GetButtonPressed(MiceButton button) => mouseStates[button] == State.PRESSED;
+    public static bool GetButtonPressed(MiceButton button) => currMice[button] == State.PRESSED;
 
-    public static bool GetButtonDown(MiceButton button) => mouseStates[button] == State.DOWN;
+    public static bool GetButtonDown(MiceButton button) => currMice[button] == State.DOWN;
 
-    public static bool GetButtonUp(MiceButton button) => mouseStates[button] == State.UP;
+    public static bool GetButtonUp(MiceButton button) => currMice[button] == State.UP;
 
     /// <summary> <b>бя Recommanded</b><br/>Is that mouse button preseed down or pressed? </summary>
     public static bool GetButton(MiceButton button) => GetButtonPressed(button) || GetButtonDown(button);
@@ -100,34 +100,34 @@ namespace SharpD12
             mouseOffset += isRelative ? new Vector2(message.Mouse.LastX, message.Mouse.LastY) : Vector2.Zero;
             break;
           case RawMouseButtonFlags.LeftButtonDown:
-            mouseStates[MiceButton.LEFT] = State.DOWN;
+            currMice[MiceButton.LEFT] = State.DOWN;
             break;
           case RawMouseButtonFlags.LeftButtonUp:
-            mouseStates[MiceButton.LEFT] = State.UP;
+            currMice[MiceButton.LEFT] = State.UP;
             break;
           case RawMouseButtonFlags.RightButtonDown:
-            mouseStates[MiceButton.RIGHT] = State.DOWN;
+            currMice[MiceButton.RIGHT] = State.DOWN;
             break;
           case RawMouseButtonFlags.RightButtonUp:
-            mouseStates[MiceButton.RIGHT] = State.UP;
+            currMice[MiceButton.RIGHT] = State.UP;
             break;
           case RawMouseButtonFlags.MiddleButtonDown:
-            mouseStates[MiceButton.MIDDLE] = State.DOWN;
+            currMice[MiceButton.MIDDLE] = State.DOWN;
             break;
           case RawMouseButtonFlags.MiddleButtonUp:
-            mouseStates[MiceButton.MIDDLE] = State.UP;
+            currMice[MiceButton.MIDDLE] = State.UP;
             break;
           case RawMouseButtonFlags.Button4Down:
-            mouseStates[MiceButton.X1] = State.DOWN;
+            currMice[MiceButton.X1] = State.DOWN;
             break;
           case RawMouseButtonFlags.Button4Up:
-            mouseStates[MiceButton.X1] = State.UP;
+            currMice[MiceButton.X1] = State.UP;
             break;
           case RawMouseButtonFlags.Button5Down:
-            mouseStates[MiceButton.X2] = State.DOWN;
+            currMice[MiceButton.X2] = State.DOWN;
             break;
           case RawMouseButtonFlags.Button5Up:
-            mouseStates[MiceButton.X2] = State.UP;
+            currMice[MiceButton.X2] = State.UP;
             break;
           case RawMouseButtonFlags.MouseWheel:
             const int WHEEL_DELTA = 120;
@@ -143,22 +143,22 @@ namespace SharpD12
         RawInputKeyboardData message = (RawInputKeyboardData)msg;
         var key = (Keys)message.Keyboard.VirutalKey;
         // Add new key into dictionary.
-        if (keyStates.ContainsKey(key) == false)
+        if (currKeys.ContainsKey(key) == false)
         {
-          keyStates.Add(key, State.NOT_PRESSED);
-          prevKeyStates.Add(key, State.NOT_PRESSED);
+          currKeys.Add(key, State.NOT_PRESSED);
+          prevKeys.Add(key, State.NOT_PRESSED);
         }
         switch (message.Keyboard.Flags)
         {
           case RawKeyboardFlags.None:
             // Remove continuous key down from system.
-            if (prevKeyStates[key] == State.NOT_PRESSED || prevKeyStates[key] == State.UP)
+            if (prevKeys[key] != State.PRESSED)
             {
-              keyStates[key] = State.DOWN;
+              currKeys[key] = State.DOWN;
             }
             break;
           case RawKeyboardFlags.Up:
-            keyStates[key] = State.UP;
+            currKeys[key] = State.UP;
             break;
           default:
             //throw new InvalidOperationException("Invalid keyboard flag.");
@@ -177,42 +177,33 @@ namespace SharpD12
       lastWheelOffset = wheelOffset;
       wheelOffset = 0;
 
-      foreach (var button in mouseStates.Keys)
+      foreach (var button in currMice.Keys)
       {
-        // Acquire states.
-        var prevState = prevMouseStates[button];
-        var state = mouseStates[button];
-        // Adjust key states.
-        if (prevState == State.DOWN && state == State.DOWN)
-        {
-          state = State.PRESSED;
-        }
-        else if (prevState == State.UP && state == State.UP)
-        {
-          state = State.NOT_PRESSED;
-        }
+        CheckPressed(out State state, prevMice[button], currMice[button]);
         // Update key states.
-        prevMouseStates[button] = state;
-        mouseStates[button] = state;
+        prevMice[button] = state;
+        currMice[button] = state;
       }
 
-      foreach (var key in keyStates.Keys)
+      foreach (var key in currKeys.Keys)
       {
-        // Acquire states.
-        var prevState = prevKeyStates[key];
-        var state = keyStates[key];
-        // Adjust key states.
-        if (prevState == State.DOWN && state == State.DOWN)
-        {
-          state = State.PRESSED;
-        }
-        else if (prevState == State.UP && state == State.UP)
-        {
-          state = State.NOT_PRESSED;
-        }
+        CheckPressed(out State state, prevKeys[key], currKeys[key]);
         // Update key states.
-        prevKeyStates[key] = state;
-        keyStates[key] = state;
+        prevKeys[key] = state;
+        currKeys[key] = state;
+      }
+    }
+
+    private static void CheckPressed(out State state, State prevState, State currentState)
+    {
+      state = currentState;
+      if (prevState == State.DOWN && currentState == State.DOWN)
+      {
+        state = State.PRESSED;
+      }
+      else if (prevState == State.UP && currentState == State.UP)
+      {
+        state = State.NOT_PRESSED;
       }
     }
   }
