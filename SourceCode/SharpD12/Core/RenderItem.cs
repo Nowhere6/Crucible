@@ -6,11 +6,9 @@ namespace SharpD12
   public class RenderItem
   {
     public short dirtyFrameCount = SwapChainSize;
-
-    // Object constants.
-    public ObjectConstants objectConst;
-
+    public ObjectConstants objectConst; // Object constants.
     public StaticMesh mesh;
+    public string albedoTex;
   }
 
   public struct ObjectConstants

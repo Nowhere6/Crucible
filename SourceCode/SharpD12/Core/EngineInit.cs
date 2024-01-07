@@ -1,17 +1,15 @@
-﻿using SharpDX;
-using SharpDX.DXGI;
-using System.Diagnostics;
-using System.Linq;
+﻿using System.Linq;
 using System.Windows.Forms;
+using System.Collections.Generic;
+using SharpDX;
+using SharpDX.DXGI;
+using SharpDX.Direct3D12;
+using static SharpD12.AppConstants;
+using Device = SharpDX.Direct3D12.Device;
+using Resource = SharpDX.Direct3D12.Resource;
 
 namespace SharpD12
 {
-  using SharpDX.Direct3D12;
-  using SharpDX.Windows;
-  using System.Collections.Generic;
-  using System.IO;
-  using static AppConstants;
-
   public partial class SD12Engine
   {
     public SD12Engine(CustomedForm form)
@@ -120,10 +118,8 @@ namespace SharpD12
 
     void PiplelineConfig()
     {
-      // Build cbv/srv/uav descriptor heap.
-      var heapType = DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView;
-      var cbvHeapDesc = new DescriptorHeapDescription { Type = heapType, DescriptorCount = (1 + MaxRenderItems) * SwapChainSize + 1, Flags = DescriptorHeapFlags.ShaderVisible };
-      FrameResource.srvDescHeap = dx12Device.CreateDescriptorHeap(cbvHeapDesc);
+      // Build srv descriptor heap.
+      SRV_Heap.Initialize(dx12Device);
 
       // Create constant buffer and pass cbv.
       FrameResource.passBuffer = new UploadBuffer<PassConstants>(dx12Device, SwapChainSize, true);
@@ -134,7 +130,7 @@ namespace SharpD12
 
     void LoadTextures()
     {
-      TextureManager.LoadPNG(dx12Device, PathHelper.GetPath(@"Textures\Default.png"), "DefaultTexture");
+      Texture.Load_PNG_RGBA32_AutoMip(dx12Device, PathHelper.GetPath(@"Textures\Default.png"), "Default");
     }
 
     void BuildRenderItems()
@@ -147,7 +143,8 @@ namespace SharpD12
       renderItems.Add(renderItem);
       renderItem.objectConst = new ObjectConstants { world = Matrix.Identity };
       //renderItem.mesh = StaticMesh.CreateBox(dx12Device, 1, 1, 1);
-      renderItem.mesh = StaticMesh.LoadOBJ(dx12Device, @"Models\stanford-bunny.obj");
+      renderItem.mesh = MeshManager.LoadExternalModel(dx12Device, "dragon.obj");
+      renderItem.albedoTex = "Default";
     }
   }
 }

@@ -1,5 +1,4 @@
-﻿using SharpDX.D3DCompiler;
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -23,7 +22,7 @@ namespace SharpD12
     {
       if (handle.IsAllocated == true)
       {
-        throw new InvalidOperationException("GC Handle has not be freed.");
+        throw new InvalidOperationException("GC Handle should be freed manually.");
       }
     }
 

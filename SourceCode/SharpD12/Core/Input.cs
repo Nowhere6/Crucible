@@ -1,9 +1,9 @@
-using Linearstar.Windows.RawInput.Native;
-using Linearstar.Windows.RawInput;
-using System.Collections.Generic;
-using System.Windows.Forms;
-using SharpDX;
 using System;
+using System.Windows.Forms;
+using System.Collections.Generic;
+using SharpDX;
+using Linearstar.Windows.RawInput;
+using Linearstar.Windows.RawInput.Native;
 
 namespace SharpD12
 {

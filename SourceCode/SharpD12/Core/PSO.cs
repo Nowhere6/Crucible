@@ -1,10 +1,10 @@
-using SharpDX.Direct3D12;
-using SharpDX.DXGI;
-using System.Collections.Generic;
+using System;
 using System.IO;
+using System.Collections.Generic;
+using SharpDX.DXGI;
+using SharpDX.Direct3D12;
 using SharpDX.D3DCompiler;
 using ShaderBytecode = SharpDX.Direct3D12.ShaderBytecode;
-using System;
 
 namespace SharpD12
 {

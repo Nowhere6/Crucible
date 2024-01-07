@@ -1,18 +1,19 @@
-﻿using SharpDX;
-using SharpDX.DXGI;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading;
+using SharpDX;
+using SharpDX.DXGI;
+using SharpDX.Direct3D12;
+using SharpDX.Windows;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms;
+using static SharpD12.AppConstants;
+using Device = SharpDX.Direct3D12.Device;
+using Resource = SharpDX.Direct3D12.Resource;
 
 namespace SharpD12
 {
-  using SharpDX.Direct3D12;
-  using SharpDX.Windows;
-  using System.Collections.Generic;
-  using System.Linq;
-  using System.Windows.Forms;
-  using static AppConstants;
-
   public partial class SD12Engine
   {
     readonly Stopwatch gameClock = new Stopwatch();
@@ -192,13 +193,13 @@ namespace SharpD12
       cmdList.ClearDepthStencilView(FrameResource.dsvHandle, ClearFlags.FlagsDepth, 1.0f, 0);
 
       cmdList.SetRenderTargets(new CpuDescriptorHandle[] { frames[currFrameIdx].backBufferHandle }, FrameResource.dsvHandle);
-      cmdList.SetDescriptorHeaps(FrameResource.srvDescHeap);
+      SRV_Heap.Bind(cmdList);
       cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
       cmdList.SetGraphicsRootSignature(PSO.GetRootSign(PSOType.PLACEHOLDER));
       cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(currFrameIdx));
 
       // Update default heaps.
-      DefaultHeapManager.UpdateAll(cmdList);
+      DefaultBuffer<byte>.UpdateAll(cmdList);
 
       // Draw render items.
       int itemCount = renderItems.Count;
@@ -206,7 +207,7 @@ namespace SharpD12
       {
         var item = renderItems[index];
         cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.objectBuffer.GetGPUAddress(currFrameIdx * MaxRenderItems + index));
-        cmdList.SetGraphicsRootDescriptorTable(2, TextureManager.textures["DefaultTexture"].gpuDescriptor);
+        cmdList.SetGraphicsRootDescriptorTable(2, Texture.GetHandle(item.albedoTex));
         cmdList.SetVertexBuffer(0, item.mesh.vertexBufferView);
         cmdList.SetIndexBuffer(item.mesh.indexBufferView);
         cmdList.DrawIndexedInstanced(item.mesh.IndexCount, 1, 0, 0, 0);

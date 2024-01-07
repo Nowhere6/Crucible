@@ -1,25 +1,23 @@
 ﻿using System;
 using SharpDX;
 using SharpDX.DXGI;
+using SharpDX.Direct3D12;
+using Device = SharpDX.Direct3D12.Device;
+using Resource = SharpDX.Direct3D12.Resource;
 
 namespace SharpD12
 {
-  using SharpDX.Direct3D12;
-  using System.Runtime.InteropServices;
-
-  public enum UploadBufferType
+  public enum BufferDataType
   {
     CB, // Constant buffer
     Tex, // Texture
     VBIB // Vertex buffer or index buffer
   }
-  /// <summary>
-  /// Upload heap manager.
-  /// </summary>
-  /// <typeparam name="T">Element type.</typeparam>
+
+  /// <summary> Generic upload heap wrapper class. </summary>
   public class UploadBuffer<T> where T : struct
   {
-    readonly UploadBufferType bufferType;
+    readonly BufferDataType bufferType;
     readonly int elementSize;
     readonly int totalSize;
     readonly int count;
@@ -36,7 +34,7 @@ namespace SharpD12
     public UploadBuffer(Device dx12Device, int elementCount, bool isConstantBuffer)
     {
       elementSize = Utilities.SizeOf<T>();
-      bufferType = isConstantBuffer ? UploadBufferType.CB : UploadBufferType.VBIB;
+      bufferType = isConstantBuffer ? BufferDataType.CB : BufferDataType.VBIB;
       // Constant buffer elements need to be multiples of 256 bytes.
       // This is because the hardware can only view constant data 
       // at m*256 byte offsets and of n*256 byte lengths. 
@@ -56,12 +54,12 @@ namespace SharpD12
     /// Create special intermediate buffer for texture.<br/>
     /// <b>Texture resource cannot be created on upload heap.</b>
     /// </summary>
-    public UploadBuffer(Device dx12Device, int widthPixels, int mipmaps)
+    public UploadBuffer(Device dx12Device, Format format, int widthPixels, int mipmaps)
     {
-      bufferType = UploadBufferType.Tex;
-      var resDesc = ResourceDescription.Texture2D(Format.R8G8B8A8_UNorm, widthPixels, widthPixels, 1, (short)mipmaps);
+      bufferType = BufferDataType.Tex;
+      var resDesc = ResourceDescription.Texture2D(format, widthPixels, widthPixels, 1, (short)mipmaps);
       var props = new HeapProperties(CpuPageProperty.WriteBack, MemoryPool.L0);
-      var state = ResourceStates.GenericRead;
+      var state = ResourceStates.CopySource;
       uploadHeap = dx12Device.CreateCommittedResource(props, HeapFlags.None, resDesc, state);
       gpuAddr = uploadHeap.GPUVirtualAddress;
     }
@@ -69,64 +67,86 @@ namespace SharpD12
     ~UploadBuffer()
     {
       // Mapping data will be invalid automatically after ID3D12Resource is disposed.
-      Utilities.Dispose<Resource>(ref uploadHeap);
+      uploadHeap.Dispose();
     }
 
     public long GetGPUAddress(int index = 0) => gpuAddr + index * elementSize;
 
-    public void Write(int DestIndex, ref T data) => Utilities.Write<T>(mappedPtr + DestIndex * elementSize, ref data);
+    public void Write(int DestIndex, ref T data)
+    {
+      if (bufferType == BufferDataType.Tex)
+        throw new NotSupportedException("Only texture buffer can invoke this.");
+      Utilities.Write<T>(mappedPtr + DestIndex * elementSize, ref data);
+    }
 
-    public void Write(int DestIndex, T[] data) => Utilities.Write<T>(mappedPtr + DestIndex * elementSize, data, 0, data.Length);
+    public void Write(int DestIndex, T[] data, int srcIndex = 0, int srcCount = 0)
+    {
+      if (srcIndex + srcCount > data.Length)
+        throw new ArgumentOutOfRangeException(nameof(srcCount));
+      if (srcIndex == 0 && srcCount == 0)
+        srcCount = data.Length;
 
-    public void Write(int DestIndex, T[] data, int srcIndex, int srcCount) => Utilities.Write<T>(mappedPtr + DestIndex * elementSize, data, srcIndex, srcCount);
+      if (bufferType == BufferDataType.CB)
+      {
+        for (int i = 0; i < srcCount; i++)
+        {
+          Utilities.Write<T>(mappedPtr + (DestIndex + i) * elementSize, data, srcIndex + i, 1);
+        }
+      }
+      else if(bufferType == BufferDataType.VBIB)
+      {
+        Utilities.Write<T>(mappedPtr + DestIndex * elementSize, data, srcIndex, srcCount);
+      }
+      else
+      {
+        throw new NotSupportedException("Only CB/IB/VB buffer can invoke this.");
+      }
+    }
 
     /// <summary>
     /// Align up for constant buffers.
     /// </summary>
-    int CbAlignUp(int size) => size + 255 & ~255;
+    static int CbAlignUp(int size) => size + 255 & ~255;
   }
 
-  /// <summary>
-  /// Default heap manager.
-  /// </summary>
-  /// <typeparam name="T">Element type.</typeparam>
+  /// <summary> Generic default heap wrapper class. </summary>
   public class DefaultBuffer<T> where T : struct
   {
-    bool needCopyRegion = false;
-    readonly int widthPixels;
-    readonly int mipmaps;
-    public UploadBuffer<T> intermediateBuffer;
+    public UploadBuffer<T> middleBuffer;
+    public readonly BufferDataType bufferType;
     public Resource defaultHeap;
-    public readonly bool isTexture;
+    readonly int widthPixels;
+    readonly int mipCount;
+    bool dirty = false;
 
-    public int Size => intermediateBuffer.Size;
+    public int Size => middleBuffer.Size;
 
-    public DefaultBuffer(Device dx12Device, int bytes, bool isTexture, int widthPixels = 0, int mipmaps = 0)
+    public DefaultBuffer(Device dx12Device, int bytes, BufferDataType bufferType, Format format = Format.R8G8B8A8_UNorm, int widthPixels = 0, int mipmaps = 0)
     {
-      if (isTexture && typeof(T) != typeof(byte))
-        throw new ArgumentException("This default buffer accommodate texture, but T is not byte.");
-      if (isTexture && (widthPixels <= 0 || mipmaps <= 0))
-        throw new ArgumentException("This default buffer accommodate texture, but widthBytes or mipmaps is invalid.");
-
-      this.isTexture = isTexture;
-      this.widthPixels = widthPixels;
-      this.mipmaps = mipmaps;
-
-      if (isTexture)
+      // initialize values and create upload buffer.
+      this.bufferType = bufferType;
+      if (bufferType == BufferDataType.Tex)
       {
-        intermediateBuffer = new UploadBuffer<T>(dx12Device, widthPixels, mipmaps);
+        if (typeof(T) != typeof(byte))
+          throw new ArgumentException("This default buffer accommodate texture, but T is not byte.");
+        if (widthPixels <= 0 || mipmaps <= 0)
+          throw new ArgumentException("This default buffer accommodate texture, but widthBytes or mipmaps is invalid.");
+        this.widthPixels = widthPixels;
+        this.mipCount = mipmaps;
+        middleBuffer = new UploadBuffer<T>(dx12Device, format, widthPixels, mipmaps);
       }
       else
       {
-        intermediateBuffer = new UploadBuffer<T>(dx12Device, bytes / Utilities.SizeOf<T>(), false);
+        middleBuffer = new UploadBuffer<T>(dx12Device, bytes / Utilities.SizeOf<T>(), bufferType == BufferDataType.CB);
       }
 
+      // Create defualt heap.
       var props = new HeapProperties(HeapType.Default);
       var state = ResourceStates.GenericRead;
       ResourceDescription desc;
-      if (isTexture)
+      if (bufferType == BufferDataType.Tex)
       {
-        desc = ResourceDescription.Texture2D(Format.R8G8B8A8_UNorm, widthPixels, widthPixels, 1, (short)mipmaps);
+        desc = ResourceDescription.Texture2D(format, widthPixels, widthPixels, 1, (short)mipmaps);
       }
       else
       {
@@ -135,83 +155,83 @@ namespace SharpD12
       defaultHeap = dx12Device.CreateCommittedResource(props, HeapFlags.None, desc, state);
 
       // Subscribe update event.
-      DefaultHeapManager.Subscribe(UpdateAction);
+      UpdateActions += UpdateAction;
+    }
+
+    ~DefaultBuffer()
+    {
+      defaultHeap.Dispose();
     }
 
     private void UpdateAction(GraphicsCommandList cmd)
     {
-      if (needCopyRegion)
-        needCopyRegion = false;
+      if (dirty)
+        dirty = false;
       else
         return;
 
       // Before barrier
-      cmd.ResourceBarrier(new ResourceTransitionBarrier(intermediateBuffer.uploadHeap, ResourceStates.GenericRead, ResourceStates.CopySource));
       cmd.ResourceBarrier(new ResourceTransitionBarrier(defaultHeap, ResourceStates.GenericRead, ResourceStates.CopyDestination));
-      if (isTexture)
+      if (bufferType == BufferDataType.Tex)
       {
-        for ( int i = 0; i < mipmaps; i++)
+        for (int i = 0; i < mipCount; i++)
         {
-          cmd.CopyTextureRegion(new TextureCopyLocation(defaultHeap, i), 0, 0, 0, new TextureCopyLocation(intermediateBuffer.uploadHeap, i), null);
+          cmd.CopyTextureRegion(new TextureCopyLocation(defaultHeap, i), 0, 0, 0, new TextureCopyLocation(middleBuffer.uploadHeap, i), null);
         }
       }
       else
       {
-        cmd.CopyBufferRegion(defaultHeap, 0, intermediateBuffer.uploadHeap, 0, intermediateBuffer.Size);
+        cmd.CopyBufferRegion(defaultHeap, 0, middleBuffer.uploadHeap, 0, middleBuffer.Size);
       }
 
       // After barrier
-      cmd.ResourceBarrier(new ResourceTransitionBarrier(intermediateBuffer.uploadHeap, ResourceStates.CopySource, ResourceStates.GenericRead));
       cmd.ResourceBarrier(new ResourceTransitionBarrier(defaultHeap, ResourceStates.CopyDestination, ResourceStates.GenericRead));
     }
 
     public void Write(int DestIndex, ref T data)
     {
-      needCopyRegion = true;
-      intermediateBuffer.Write(DestIndex, ref data);
+      dirty = true;
+      if (bufferType == BufferDataType.Tex)
+        throw new NotSupportedException("Only default buffer not of texture can invoke this.");
+      middleBuffer.Write(DestIndex, ref data);
     }
 
-    public void Write(int DestIndex, T[] data)
+    public void Write(int DestIndex, T[] data, int srcIndex = 0, int srcCount = 0)
     {
-      needCopyRegion = true;
-      intermediateBuffer.Write(DestIndex, data);
-    }
-
-    public void Write(int DestIndex, T[] data, int srcIndex, int srcCount)
-    {
-      needCopyRegion = true;
-      intermediateBuffer.Write(DestIndex, data, srcIndex, srcCount);
+      dirty = true;
+      if (bufferType == BufferDataType.Tex)
+        throw new NotSupportedException("Only default buffer not of texture can invoke this.");
+      if (srcIndex == 0 && srcCount == 0)
+        srcCount = data.Length;
+      middleBuffer.Write(DestIndex, data, srcIndex, srcCount);
     }
 
     public void TextureWrite(byte[] data)
     {
-      needCopyRegion = true;
-      if (!isTexture)
-        throw new NotSupportedException("Only texture default buffer can invoke this function.");
+      dirty = true;
+      if (bufferType != BufferDataType.Tex)
+        throw new NotSupportedException("Only default buffer of texture can invoke this.");
 
       int width = widthPixels;
       var nativePtr = new NativePtr(data);
       var ptr = nativePtr.Get();
-      for (int i = 0; i < mipmaps; i++)
+      for (int mip = 0; mip < mipCount; mip++)
       {
-        int bytes = width * width * 4;
-        intermediateBuffer.uploadHeap.WriteToSubresource(i, null, ptr, width * 4, bytes);
-        width /= 2;
-        ptr += bytes;
+        width >>= mip;
+        int rowPitch = width * 4;
+        int depthPitch = rowPitch * width;
+        middleBuffer.uploadHeap.WriteToSubresource(mip, null, ptr, rowPitch, depthPitch);
+        ptr += depthPitch;
       }
       nativePtr.Free();
     }
-  }
 
-  public static class DefaultHeapManager
-  {
-    private static event Action<GraphicsCommandList> updateActions;
+    /////////////////////////////////////////////////////////
+    ///                      Static                       ///
+    /////////////////////////////////////////////////////////
 
-    public static void Subscribe(Action<GraphicsCommandList> action) => updateActions += action;
+    static event Action<GraphicsCommandList> UpdateActions;
 
-    /// <summary>
-    /// Update all default heaps, <b>should be invoked only once before drawing.</b>
-    /// </summary>
-    public static void UpdateAll(GraphicsCommandList cmd) => updateActions?.Invoke(cmd);
+    public static void UpdateAll(GraphicsCommandList cmd) => UpdateActions?.Invoke(cmd);
   }
 }

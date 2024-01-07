@@ -14,7 +14,6 @@ namespace SharpD12
     public static CpuDescriptorHandle dsvHandle;
     public static DescriptorHeap rtvDescHeap;
     public static DescriptorHeap dsvDescHeap;
-    public static DescriptorHeap srvDescHeap;
     public static UploadBuffer<PassConstants> passBuffer;
     public static UploadBuffer<ObjectConstants> objectBuffer;
   }
