@@ -75,7 +75,7 @@ namespace SharpD12
     public void Write(int DestIndex, ref T data)
     {
       if (bufferType == BufferDataType.Tex)
-        throw new NotSupportedException("Only texture buffer can invoke this.");
+        throw new NotSupportedException("Only CB/IB/VB buffer can invoke this.");
       Utilities.Write<T>(mappedPtr + DestIndex * elementSize, ref data);
     }
 

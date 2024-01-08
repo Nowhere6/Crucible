@@ -55,9 +55,6 @@ namespace SharpD12
       throw new DirectoryNotFoundException("\"Resources\" folder does not exist.");
     }
 
-    static public string GetPath(string name)
-    {
-      return Path.Combine(ResourceRootPath, name);
-    }
+    static public string GetPath(string name) => Path.Combine(ResourceRootPath, name);
   }
 }
