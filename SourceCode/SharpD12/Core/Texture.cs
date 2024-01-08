@@ -26,6 +26,8 @@ namespace SharpD12
     /// </summary>
     private Texture(Device device, Format format, int totalSize, int pixelWidth, int mips)
     {
+      if (mips < 1)
+        throw new ArgumentException("The count of mipmaps must be greater than 0.");
       this.PixelWidth = pixelWidth;
       this.MipCount = mips;
       this.TotalSize = totalSize;
