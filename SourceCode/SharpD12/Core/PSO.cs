@@ -15,7 +15,7 @@ namespace SharpD12
 
   public static class PSO
   {
-    protected struct PipelineConfig
+    protected class PipelineConfig
     {
       public PipelineState pso;
       public RootSignature rootSign;
