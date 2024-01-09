@@ -179,13 +179,12 @@ namespace SharpD12
       var decoder = new PngBitmapDecoder(factory);
       decoder.Initialize(stream, DecodeOptions.CacheOnDemand);
       var rawFrame = decoder.GetFrame(0);
-      var convertedFrame = new FormatConverter(factory);
-      convertedFrame.Initialize(rawFrame, WIC_Format);
-      var bitmap = new Bitmap(factory, convertedFrame, BitmapCreateCacheOption.CacheOnDemand);
+      if (rawFrame.PixelFormat != PixelFormat.Format8bppGray)
+        throw new Exception("Load_PNG_R8_NoMip() only read 8-bit grayscale image.");
+      var bitmap = new Bitmap(factory, rawFrame, BitmapCreateCacheOption.CacheOnDemand);
       stream.Dispose();
       decoder.Dispose();
       rawFrame.Dispose();
-      convertedFrame.Dispose();
 
       // Acquire parameters and verify them.
       int pixelWidth = bitmap.Size.Width;
