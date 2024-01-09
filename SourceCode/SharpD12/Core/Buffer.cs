@@ -115,13 +115,14 @@ namespace SharpD12
     public UploadBuffer<T> middleBuffer;
     public readonly BufferDataType bufferType;
     public Resource defaultHeap;
-    readonly int widthPixels;
+    readonly int pixelWidth;
+    readonly int pixelSize;
     readonly int mipCount;
-    bool dirty = false;
+    bool dirty = false; // TODO: dirty protection
 
     public int Size => middleBuffer.Size;
 
-    public DefaultBuffer(Device dx12Device, int bytes, BufferDataType bufferType, Format format = Format.R8G8B8A8_UNorm, int widthPixels = 0, int mipmaps = 0)
+    public DefaultBuffer(Device dx12Device, int bytes, BufferDataType bufferType, Format format = Format.R8G8B8A8_UNorm, int pixelSize = 0, int pixelWidth = 0, int mipmaps = 0)
     {
       // initialize values and create upload buffer.
       this.bufferType = bufferType;
@@ -129,11 +130,12 @@ namespace SharpD12
       {
         if (typeof(T) != typeof(byte))
           throw new ArgumentException("This default buffer accommodate texture, but T is not byte.");
-        if (widthPixels <= 0 || mipmaps <= 0)
+        if (pixelWidth <= 0 || mipmaps <= 0)
           throw new ArgumentException("This default buffer accommodate texture, but widthBytes or mipmaps is invalid.");
-        this.widthPixels = widthPixels;
+        this.pixelWidth = pixelWidth;
+        this.pixelSize = pixelSize;
         this.mipCount = mipmaps;
-        middleBuffer = new UploadBuffer<T>(dx12Device, format, widthPixels, mipmaps);
+        middleBuffer = new UploadBuffer<T>(dx12Device, format, pixelWidth, mipmaps);
       }
       else
       {
@@ -146,7 +148,7 @@ namespace SharpD12
       ResourceDescription desc;
       if (bufferType == BufferDataType.Tex)
       {
-        desc = ResourceDescription.Texture2D(format, widthPixels, widthPixels, 1, (short)mipmaps);
+        desc = ResourceDescription.Texture2D(format, pixelWidth, pixelWidth, 1, (short)mipmaps);
       }
       else
       {
@@ -212,13 +214,13 @@ namespace SharpD12
       if (bufferType != BufferDataType.Tex)
         throw new NotSupportedException("Only default buffer of texture can invoke this.");
 
-      int width = widthPixels;
+      int width = pixelWidth;
       var nativePtr = new NativePtr(data);
       var ptr = nativePtr.Get();
       for (int mip = 0; mip < mipCount; mip++)
       {
         width >>= mip;
-        int rowPitch = width * 4;
+        int rowPitch = width * pixelSize;
         int depthPitch = rowPitch * width;
         middleBuffer.uploadHeap.WriteToSubresource(mip, null, ptr, rowPitch, depthPitch);
         ptr += depthPitch;

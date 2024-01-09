@@ -15,8 +15,8 @@ namespace SharpD12
   public class Texture
   {
     public int PixelWidth { get; private set; }
-    public int MipCount { get; private set; }
     public int TotalSize { get; private set; }
+    public int MipCount { get; private set; }
     public int SrvIdx { get; private set; }
 
     public DefaultBuffer<byte> buffer;
@@ -24,14 +24,14 @@ namespace SharpD12
     /// <summary>
     /// Create an empty texture.
     /// </summary>
-    private Texture(Device device, Format format, int totalSize, int pixelWidth, int mips)
+    private Texture(Device device, Format format, int pixelSize, int totalSize, int pixelWidth, int mips)
     {
       if (mips < 1)
         throw new ArgumentException("The count of mipmaps must be greater than 0.");
       this.PixelWidth = pixelWidth;
-      this.MipCount = mips;
       this.TotalSize = totalSize;
-      buffer = new DefaultBuffer<byte>(device, totalSize, BufferDataType.Tex, format, pixelWidth, mips);
+      this.MipCount = mips;
+      buffer = new DefaultBuffer<byte>(device, totalSize, BufferDataType.Tex, format, pixelSize, pixelWidth, mips);
 
       ShaderResourceViewDescription desc = new ShaderResourceViewDescription()
       {
@@ -87,6 +87,7 @@ namespace SharpD12
       // Create bitmap object.
       Guid WIC_Format = PixelFormat.Format32bppRGBA;
       Format DXGI_Format = Format.R8G8B8A8_UNorm;
+      int pixelSize = 4;
       var stream = new WICStream(factory, loc, NativeFileAccess.Read);
       var decoder = new PngBitmapDecoder(factory);
       decoder.Initialize(stream, DecodeOptions.CacheOnDemand);
@@ -101,7 +102,7 @@ namespace SharpD12
 
       // Acquire parameters and verify them.
       int pixelWidth = bitmap.Size.Width;
-      int size_mip0 = pixelWidth * pixelWidth * 4;
+      int size_mip0 = pixelWidth * pixelWidth * pixelSize;
       float power = MathF.Log2(pixelWidth);
       int mips = (int)power + 1;
       if (pixelWidth != bitmap.Size.Height)
@@ -114,7 +115,7 @@ namespace SharpD12
       // Create byte array, acquire its address.
       int totalSize = 0;
       for (int w = pixelWidth; w > 0; w = w >> 1)
-        totalSize += w * w * 4;
+        totalSize += w * w * pixelSize;
       Byte[] data = new byte[totalSize];
       var nativePtr = new NativePtr(data);
       var ptr = nativePtr.Get();
@@ -124,7 +125,7 @@ namespace SharpD12
       unsafe
       {
         byte* bitData = (byte*)bitLock.Data.DataPointer;
-        for (int offset = 0; offset < size_mip0; offset += 4)
+        for (int offset = 0; offset < size_mip0; offset += pixelSize)
         {
           FastDecodeSRGB(ref bitData[offset]);
           FastDecodeSRGB(ref bitData[offset + 1]);
@@ -132,14 +133,14 @@ namespace SharpD12
         }
       }
       bitLock.Dispose();
-      bitmap.CopyPixels(pixelWidth * 4, ptr, size_mip0);
+      bitmap.CopyPixels(pixelWidth * pixelSize, ptr, size_mip0);
       ptr += size_mip0;
 
       // Generate mipmaps.
       for (int mip = 1; mip < mips; mip++)
       {
         int currPixelWidth = pixelWidth >> mip;
-        int size_mip_i = currPixelWidth * currPixelWidth * 4;
+        int size_mip_i = currPixelWidth * currPixelWidth * pixelSize;
         var scaler = new BitmapScaler(factory);
         // Fant resampling mode is default mode to generate mip-maps in Texconv tool.
         scaler.Initialize(bitmap, currPixelWidth, currPixelWidth, BitmapInterpolationMode.Fant);
@@ -147,12 +148,12 @@ namespace SharpD12
         {
           var converter = new FormatConverter(factory);
           converter.Initialize(scaler, WIC_Format);
-          converter.CopyPixels(currPixelWidth * 4, ptr, size_mip_i);
+          converter.CopyPixels(currPixelWidth * pixelSize, ptr, size_mip_i);
           converter.Dispose();
         }
         else
         {
-          scaler.CopyPixels(currPixelWidth * 4, ptr, size_mip_i);
+          scaler.CopyPixels(currPixelWidth * pixelSize, ptr, size_mip_i);
         }
         scaler.Dispose();
         ptr += size_mip_i;
@@ -160,7 +161,7 @@ namespace SharpD12
       nativePtr.Free();
 
       // Register texture.
-      Texture texture = new Texture(device, DXGI_Format, totalSize, pixelWidth, mips);
+      Texture texture = new Texture(device, DXGI_Format, pixelSize, totalSize, pixelWidth, mips);
       texture.Write(data);
       texCollection.Add(name, texture);
     }
@@ -171,8 +172,9 @@ namespace SharpD12
         throw new ArgumentException($"Bitmap isn't png format. loc={loc}");
 
       // Create bitmap object.
-      Guid WIC_Format = PixelFormat.Format8bppAlpha;
+      Guid WIC_Format = PixelFormat.Format8bppGray;
       Format DXGI_Format = Format.R8_UNorm;
+      int pixelSize = 1;
       var stream = new WICStream(factory, loc, NativeFileAccess.Read);
       var decoder = new PngBitmapDecoder(factory);
       decoder.Initialize(stream, DecodeOptions.CacheOnDemand);
@@ -187,7 +189,7 @@ namespace SharpD12
 
       // Acquire parameters and verify them.
       int pixelWidth = bitmap.Size.Width;
-      int size_mip0 = pixelWidth * pixelWidth * 4;
+      int size_mip0 = pixelWidth * pixelWidth;
       float power = MathF.Log2(pixelWidth);
       if (pixelWidth != bitmap.Size.Height)
         throw new ArgumentException($"Bitmap isn't square. loc={loc}");
@@ -214,12 +216,12 @@ namespace SharpD12
       //  }
       //}
       //bitLock.Dispose();
-      bitmap.CopyPixels(pixelWidth * 4, ptr, size_mip0);
+      bitmap.CopyPixels(pixelWidth, ptr, size_mip0);
       //ptr += size_mip0;
       nativePtr.Free();
 
       // Register texture.
-      Texture texture = new Texture(device, DXGI_Format, size_mip0, pixelWidth, 1);
+      Texture texture = new Texture(device, DXGI_Format, pixelSize, size_mip0, pixelWidth, 1);
       texture.Write(data);
       texCollection.Add(name, texture);
     }
