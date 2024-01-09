@@ -50,9 +50,10 @@ namespace SharpD12
 
     public static void Register(nint formHandle)
     {
-      RawInputDevice.RegisterDevice(HidUsageAndPage.Keyboard, RawInputDeviceFlags.ExInputSink | RawInputDeviceFlags.NoLegacy, formHandle);
+      // Remove RIDEV_EXINPUTSINK so we don't receive raw-input when app is in background.
+      RawInputDevice.RegisterDevice(HidUsageAndPage.Keyboard, RawInputDeviceFlags.NoLegacy, formHandle);
       // If we added "NoLegacy" flag to mouse, the window would be unresponsive.
-      RawInputDevice.RegisterDevice(HidUsageAndPage.Mouse, RawInputDeviceFlags.ExInputSink, formHandle);
+      RawInputDevice.RegisterDevice(HidUsageAndPage.Mouse, RawInputDeviceFlags.None, formHandle);
     }
 
     public static void UnRegister()

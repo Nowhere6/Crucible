@@ -15,12 +15,8 @@ namespace SharpD12
     {
       int width = 1920;
       int height = 1080;
-      var form = new CustomedForm();
-      form.Width = width;
-      form.Height = height;
-      form.AllowUserResizing = false;
-      form.Text = "SharpD12";
-      
+      var form = new CustomedForm(width, height);
+
       try
       {
         var engine = new SD12Engine(form);
@@ -35,11 +31,23 @@ namespace SharpD12
 
   public class CustomedForm : RenderForm
   {
-    public CustomedForm() : base() { }
-
     public delegate void InputAction(RawInputData msg);
 
     public event InputAction InputEvent;
+    /// <summary>Because size of form does not equal to size ofrender target, we add this panel for drawing.</summary>
+    public Panel DrawingPanel { get; private set; }
+    
+    public CustomedForm(int formWidth, int formHeight) : base()
+    {
+      Text = "SharpD12";
+      Width = formWidth;
+      Height = formHeight;
+      AllowUserResizing = true;
+      DrawingPanel = new Panel();
+      DrawingPanel.Margin = new Padding(0);
+      DrawingPanel.Dock = DockStyle.Fill;
+      Controls.Add(DrawingPanel);
+    }
 
     protected override void WndProc(ref Message m)
     {

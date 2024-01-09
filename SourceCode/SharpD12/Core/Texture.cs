@@ -202,21 +202,18 @@ namespace SharpD12
       var nativePtr = new NativePtr(data);
       var ptr = nativePtr.Get();
 
-      // Decode SRGB color before create scaler to make result right.
-      //var bitLock = bitmap.Lock(BitmapLockFlags.Write | BitmapLockFlags.Read);
-      //unsafe
-      //{
-      //  byte* bitData = (byte*)bitLock.Data.DataPointer;
-      //  for (int offset = 0; offset < size_mip0; offset += 4)
-      //  {
-      //    FastDecodeSRGB(ref bitData[offset]);
-      //    FastDecodeSRGB(ref bitData[offset + 1]);
-      //    FastDecodeSRGB(ref bitData[offset + 2]);
-      //  }
-      //}
-      //bitLock.Dispose();
+      // Although this is grayscale texture, we still need to decode SRGB color.
+      var bitLock = bitmap.Lock(BitmapLockFlags.Write | BitmapLockFlags.Read);
+      unsafe
+      {
+        byte* bitData = (byte*)bitLock.Data.DataPointer;
+        for (int offset = 0; offset < size_mip0; offset++)
+        {
+          FastDecodeSRGB(ref bitData[offset]);
+        }
+      }
+      bitLock.Dispose();
       bitmap.CopyPixels(pixelWidth, ptr, size_mip0);
-      //ptr += size_mip0;
       nativePtr.Free();
 
       // Register texture.
