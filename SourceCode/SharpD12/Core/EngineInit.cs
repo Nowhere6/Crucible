@@ -12,11 +12,11 @@ namespace SharpD12
 {
   public partial class SD12Engine
   {
-    public SD12Engine(CustomedForm form)
+    public SD12Engine(CustomedForm winForm)
     {
-      this.form = form; 
-      this.width = form.Width;
-      this.height = form.Height;
+      form = winForm; 
+      width = form.DrawingPanel.Width;
+      height = form.DrawingPanel.Height;
       form.InputEvent += Input.PerMessageProcess;
       syncEventHandle = syncEvent.SafeWaitHandle.DangerousGetHandle();
       viewPort = new ViewportF(0, 0, width, height);
@@ -62,6 +62,7 @@ namespace SharpD12
       CreateFrames();
       PiplelineConfig();
       LoadTextures();
+      UI.BitFont.Reinitialize(dx12Device, PathHelper.GetPath("Font"));
       BuildRenderItems();
     }
 
@@ -71,11 +72,11 @@ namespace SharpD12
       var description = new SwapChainDescription()
       {
         IsWindowed = true,
-        OutputHandle = form.Handle,
+        OutputHandle = form.DrawingPanel.Handle,
         BufferCount = SwapChainSize,
         Usage = Usage.RenderTargetOutput,
         SwapEffect = SwapEffect.FlipDiscard,
-        Flags = SwapChainFlags.AllowModeSwitch | SwapChainFlags.AllowTearing,
+        Flags = SwapChainFlags.AllowTearing,
         SampleDescription = new SampleDescription(1, 0),
         ModeDescription = new ModeDescription(Format.R8G8B8A8_UNorm),
       };
@@ -105,7 +106,7 @@ namespace SharpD12
 
       // Create depth buffer and DSV.
       FrameResource.dsvHandle = FrameResource.dsvDescHeap.CPUDescriptorHandleForHeapStart;
-      var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil);
+      var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil | ResourceFlags.DenyShaderResource);
       var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
       FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
       DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
@@ -122,8 +123,9 @@ namespace SharpD12
       SRV_Heap.Initialize(dx12Device);
 
       // Create constant buffer and pass cbv.
-      FrameResource.passBuffer = new UploadBuffer<PassConstants>(dx12Device, SwapChainSize, true);
-      FrameResource.objectBuffer = new UploadBuffer<ObjectConstants>(dx12Device, MaxRenderItems * SwapChainSize, true);
+      FrameResource.passBuffer = new UploadBuffer<SuperPassConsts>(dx12Device, SwapChainSize, true);
+      FrameResource.staticRenderItemObjectBuffer = new UploadBuffer<SuperObjectConsts>(dx12Device, MaxStaticRenderItems * SwapChainSize, true);
+      FrameResource.uiRenderItemObjectBuffer = new UploadBuffer<SuperObjectConsts>(dx12Device, MaxUIRenderItems * SwapChainSize, true);
 
       PSO.ReInitialize(dx12Device, PathHelper.GetPath("Shaders"));
     }
@@ -135,16 +137,23 @@ namespace SharpD12
 
     void BuildRenderItems()
     {
-      renderItems = new List<RenderItem>();
-      renderItems.Capacity = MaxRenderItems;
+      staticRenderItems = new List<StaticRenderItem>();
+      uiRenderItems = new List<UIRenderItem>();
 
       // Create one render item.
-      var renderItem = new RenderItem();
-      renderItems.Add(renderItem);
-      renderItem.objectConst = new ObjectConstants { world = Matrix.Identity };
+      var renderItem = new StaticRenderItem();
+      staticRenderItems.Add(renderItem);
+      renderItem.objectConst = new SuperObjectConsts { world = Matrix.Identity };
       //renderItem.mesh = StaticMesh.CreateBox(dx12Device, 1, 1, 1);
       renderItem.mesh = MeshManager.LoadExternalModel(dx12Device, "dragon.obj");
       renderItem.albedoTex = "Default";
+
+      // Temp
+      var uiRenderItem = new UIRenderItem();
+      uiRenderItems.Add(uiRenderItem);
+      uiRenderItem.objectConst = new SuperObjectConsts { color = Vector4.One };
+      uiRenderItem.mesh = MeshManager.MakeSimpleTextMesh(dx12Device, $"Hello World! \nOriginal Font Size={UI.BitFont.FontSize}");
+      uiRenderItem.tex = UI.BitFont.Name;
     }
   }
 }

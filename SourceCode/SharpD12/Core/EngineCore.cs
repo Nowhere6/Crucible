@@ -30,7 +30,8 @@ namespace SharpD12
     Device dx12Device;
     SwapChain swapChain;
     FrameResource[] frames;
-    List<RenderItem> renderItems;
+    List<StaticRenderItem> staticRenderItems;
+    List<UIRenderItem> uiRenderItems;
     CommandQueue commandQueue;
     GraphicsCommandList cmdList;
     Factory4 factory = new Factory4();
@@ -39,7 +40,7 @@ namespace SharpD12
     ViewportF viewPort;
     Rectangle scissorRectangle;
     int currFrameIdx = 0;
-    long currFenceValue = 1; // Fence value when current frame completed.
+    long currFenceValue = 0; // Fence value when previous frame completed.
     AutoResetEvent syncEvent = new AutoResetEvent(false);
     IntPtr syncEventHandle;
     private static int rtv_size;
@@ -56,30 +57,53 @@ namespace SharpD12
       // Therefore, show form after engine initial could reduces this issue.
       EngineInitialize();
       form.Show();
-      int frameCount = 0;
-      Stopwatch titleTimer = new Stopwatch();
-      titleTimer.Start();
 
       Input.Register(form.Handle);
       var loop = new RenderLoop(form);
       while (loop.NextFrame())
       {
-        // Display info in title.
-        frameCount++;
-        double frameTime = titleTimer.Elapsed.TotalMilliseconds;
-        if (frameTime > 500)
-        {
-          form.Text = $"FrameTime = {(frameTime / frameCount).ToString("f2")}ms\t{(frameCount * 1000d / frameTime).ToString("f0")}FPS";
-          titleTimer.Restart();
-          frameCount = 0;
-        }
-
+        Resize();
         // Update and render for MiniEngine
         Update();
         Render();
       }
       Input.UnRegister();
       loop.Dispose();
+    }
+
+    void Resize()
+    {
+      if (form.DrawingPanel.Width != width || form.DrawingPanel.Height != height)
+      {
+        width = form.DrawingPanel.Width;
+        height = form.DrawingPanel.Height;
+        viewPort.Width = width;
+        viewPort.Height = height;
+        scissorRectangle.Width = width;
+        scissorRectangle.Height = height;
+        // Finish all rendering tasks.
+        FenceSync_FlushCommandQueue();
+        // Dispose old buffers.
+        FrameResource.depthBuffer.Dispose();
+        for (int i = 0; i < SwapChainSize; ++i)
+          frames[i].backBuffer.Dispose();
+        // Create new buffers.
+        swapChain.ResizeBuffers(SwapChainSize, width, height, Format.R8G8B8A8_UNorm, SwapChainFlags.AllowTearing);
+        var rtvDesc = new RenderTargetViewDescription { Format = Format.R8G8B8A8_UNorm, Dimension = RenderTargetViewDimension.Texture2D };
+        for (int resIndex = 0; resIndex < SwapChainSize; ++resIndex)
+        {
+          // Make sure current frame has first buffer in swapchain.
+          int frameIndex = (currFrameIdx + resIndex) % SwapChainSize;
+          frames[frameIndex].backBuffer = swapChain.GetBackBuffer<Resource>(resIndex);
+          dx12Device.CreateRenderTargetView(frames[frameIndex].backBuffer, rtvDesc, frames[frameIndex].backBufferHandle);
+        }
+        // Create depth buffer and DSV.
+        var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil | ResourceFlags.DenyShaderResource);
+        var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
+        FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
+        DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
+        dx12Device.CreateDepthStencilView(FrameResource.depthBuffer, dsvDesc, FrameResource.dsvHandle);
+      }
     }
 
     void Update()
@@ -106,15 +130,25 @@ namespace SharpD12
 
     void UpdateRenderItems()
     {
-      int itemCount = renderItems.Count;
+      int itemCount = staticRenderItems.Count;
       foreach (int i in Enumerable.Range(0, itemCount))
       {
-        var item = renderItems[i];
-        if (item.dirtyFrameCount > 0)
+        var item = staticRenderItems[i];
+        if (item.NeedUpdate())
         {
-          --item.dirtyFrameCount;
-          int elementIndex = MaxRenderItems * currFrameIdx + i;
-          FrameResource.objectBuffer.Write(elementIndex, ref item.objectConst);
+          int elementIndex = MaxStaticRenderItems * currFrameIdx + i;
+          FrameResource.staticRenderItemObjectBuffer.Write(elementIndex, ref item.objectConst);
+        }
+      }
+
+      itemCount = uiRenderItems.Count;
+      foreach (int i in Enumerable.Range(0, itemCount))
+      {
+        var item = uiRenderItems[i];
+        if (item.NeedUpdate())
+        {
+          int elementIndex = MaxUIRenderItems * currFrameIdx + i;
+          FrameResource.uiRenderItemObjectBuffer.Write(elementIndex, ref item.objectConst);
         }
       }
     }
@@ -134,7 +168,7 @@ namespace SharpD12
         moveVec += Vector3.Normalize(Vector3.Cross(Vector3.Up, cameraZAxis));
       if (Input.GetKey(Keys.ControlKey))
         moveVec -= Vector3.Up;
-        if (Input.GetKey(Keys.Space))
+      if (Input.GetKey(Keys.Space))
         moveVec += Vector3.Up;
       moveVec = Vector3.Normalize(moveVec);
       cameraPos += moveVec * deltaTime * 4;
@@ -158,7 +192,7 @@ namespace SharpD12
 
       Matrix view = SharpDX.Matrix.LookAtLH(cameraPos, cameraPos + cameraZAxis, Vector3.Up);
       Matrix proj = SharpDX.Matrix.PerspectiveFovLH(MathUtil.DegreesToRadians(60), (float)width / (float)height, 0.1f, 100f);
-      var passConst = new PassConstants { viewProj = Matrix.Multiply(view, proj) };
+      var passConst = new SuperPassConsts { viewProj = Matrix.Multiply(view, proj), viewportSize = new Vector4(width, height, 1f / width, 1f / height) };
       FrameResource.passBuffer.Write(currFrameIdx, ref passConst);
     }
 
@@ -201,16 +235,29 @@ namespace SharpD12
       // Update default heaps.
       DefaultBuffer<byte>.UpdateAll(cmdList);
 
-      // Draw render items.
-      int itemCount = renderItems.Count;
-      foreach (int index in Enumerable.Range(0, itemCount))
+      // Draw static render items.
+      int itemCount = staticRenderItems.Count;
+      for (int index = 0; index < itemCount; index++)
       {
-        var item = renderItems[index];
-        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.objectBuffer.GetGPUAddress(currFrameIdx * MaxRenderItems + index));
+        var item = staticRenderItems[index];
+        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.staticRenderItemObjectBuffer.GetGPUAddress(currFrameIdx * MaxStaticRenderItems + index));
         cmdList.SetGraphicsRootDescriptorTable(2, Texture.GetHandle(item.albedoTex));
         cmdList.SetVertexBuffer(0, item.mesh.vertexBufferView);
         cmdList.SetIndexBuffer(item.mesh.indexBufferView);
         cmdList.DrawIndexedInstanced(item.mesh.IndexCount, 1, 0, 0, 0);
+      }
+
+      // Draw UI render items.
+      cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleStrip;
+      cmdList.PipelineState = PSO.GetPSO(PSOType.UI);
+      itemCount = uiRenderItems.Count;
+      for (int index = 0; index < itemCount; index++)
+      {
+        var item = uiRenderItems[index];
+        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.uiRenderItemObjectBuffer.GetGPUAddress(currFrameIdx * MaxUIRenderItems + index));
+        cmdList.SetGraphicsRootDescriptorTable(2, Texture.GetHandle(item.tex));
+        cmdList.SetVertexBuffer(0, item.mesh.vertexBufferView);
+        cmdList.DrawInstanced(item.mesh.VertexCount, 1, 0, 0);
       }
 
       // Use barrier to notify that we are going to present the RenderTarget
@@ -225,6 +272,7 @@ namespace SharpD12
     /// </summary>
     void FenceSync_MultipleBuffers()
     {
+      currFenceValue++;
       commandQueue.Signal(fence, currFenceValue);
       frames[currFrameIdx].fenceValue = currFenceValue;
       // Cycle through the circular frame resource array.
@@ -232,27 +280,26 @@ namespace SharpD12
       long fenceValue = frames[currFrameIdx].fenceValue;
       // Has the GPU finished processing the commands of the current frame resource?
       // If not, wait until the GPU has completed commands up to this fence point.
-      if (fenceValue != 0 && fence.CompletedValue < fenceValue)
+      if (fenceValue > 0 && fence.CompletedValue < fenceValue)
       {
         fence.SetEventOnCompletion(fenceValue, syncEventHandle);
         syncEvent.WaitOne();
       }
-      ++currFenceValue;
     }
 
     /// <summary>
-    /// Wait for all commands to be finished. It's simple but inefficent.<br/>
-    /// <b>Invoke after CommandQueue.ExecuteCommandList</b>
+    /// Wait for all commands to be finished.<br/>
+    /// <b>Don't change currFrameIdx, use whrerever you want.</b>
     /// </summary>
     void FenceSync_FlushCommandQueue()
     {
+      currFenceValue++;
       commandQueue.Signal(fence, currFenceValue);
       if (fence.CompletedValue < currFenceValue)
       {
         fence.SetEventOnCompletion(currFenceValue, syncEventHandle);
         syncEvent.WaitOne();
       }
-      ++currFenceValue;
     }
   }
 }

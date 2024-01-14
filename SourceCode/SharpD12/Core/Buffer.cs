@@ -61,7 +61,6 @@ namespace SharpD12
       var props = new HeapProperties(CpuPageProperty.WriteBack, MemoryPool.L0);
       var state = ResourceStates.CopySource;
       uploadHeap = dx12Device.CreateCommittedResource(props, HeapFlags.None, resDesc, state);
-      gpuAddr = uploadHeap.GPUVirtualAddress;
     }
 
     ~UploadBuffer()

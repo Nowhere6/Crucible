@@ -21,6 +21,8 @@ namespace SharpD12
     
     public const float GameUnit2Meter = 1000f;
 
-    public const int MaxRenderItems = 1 << 10;
+    public const int MaxStaticRenderItems = 1 << 10;
+
+    public const int MaxUIRenderItems = 1 << 8;
   }
 }

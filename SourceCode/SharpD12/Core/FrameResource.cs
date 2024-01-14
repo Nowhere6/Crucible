@@ -14,12 +14,20 @@ namespace SharpD12
     public static CpuDescriptorHandle dsvHandle;
     public static DescriptorHeap rtvDescHeap;
     public static DescriptorHeap dsvDescHeap;
-    public static UploadBuffer<PassConstants> passBuffer;
-    public static UploadBuffer<ObjectConstants> objectBuffer;
+    public static UploadBuffer<SuperPassConsts> passBuffer;
+    public static UploadBuffer<SuperObjectConsts> staticRenderItemObjectBuffer;
+    public static UploadBuffer<SuperObjectConsts> uiRenderItemObjectBuffer;
   }
 
-  public struct PassConstants
+  public struct SuperPassConsts
   {
     public Matrix viewProj;
+    public Vector4 viewportSize; // w, h, 1/w, 1/h
+  }
+
+  public struct SuperObjectConsts
+  {
+    public Matrix world;
+    public Vector4 color;
   }
 }

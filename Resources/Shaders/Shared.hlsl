@@ -13,8 +13,27 @@ struct VertexIn
 
 struct VertexOut
 {
-  float4 pH : SV_POSITION;
+  float4 pos : SV_POSITION;
   float2 uv : TEXCOORD;
+};
+
+struct UIVertexIn
+{
+  float2 pos : POSITION;
+  float2 uv : TEXCOORD;
+};
+
+struct UIVertexOut
+{
+  float4 pos : SV_POSITION;
+  float2 uv : TEXCOORD;
+};
+
+struct UIPixelIn
+{
+  float4 pos : SV_POSITION;
+  float2 uv : TEXCOORD;
+  uint id : SV_PrimitiveID;
 };
 
 SamplerState Point : register(s0);
@@ -25,14 +44,16 @@ SamplerState Anisotropic : register(s2);
 #define TexT(tex, uv) tex.Sample(Trilinear, uv)   // Trilinear-Clamp (Post-processing / UI)
 #define Tex(tex, uv)  tex.Sample(Anisotropic, uv) // Anisotropic-Wrap (Mesh)
 
-cbuffer cbObject : register(b0)
+cbuffer SuperObjectConsts : register(b0)
 {
   float4x4 mtxW;
+  float4 color;
 };
 
-cbuffer cbPass : register(b1)
+cbuffer SuperPassConsts : register(b1)
 {
   float4x4 mtxVP;
+  float4 viewportSize; // w, h, 1/w, 1/h
 };
 
 Texture2D texAlbedo : register(t0);
