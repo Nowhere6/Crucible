@@ -18,11 +18,9 @@ namespace SharpD12
       width = form.DrawingPanel.Width;
       height = form.DrawingPanel.Height;
       form.InputEvent += Input.PerMessageProcess;
-      syncEventHandle = syncEvent.SafeWaitHandle.DangerousGetHandle();
       viewPort = new ViewportF(0, 0, width, height);
       scissorRectangle = new Rectangle(0, 0, width, height);
       CreateDX12Device();
-      fence = dx12Device.CreateFence(0, FenceFlags.None);
       rtv_size = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
       dsv_size = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.DepthStencilView);
       csu_size = dx12Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
@@ -69,6 +67,7 @@ namespace SharpD12
     void CreateQueueAndChain()
     {
       commandQueue = dx12Device.CreateCommandQueue(new CommandQueueDescription(CommandListType.Direct));
+      fence = new FenceSync(dx12Device, commandQueue, SwapChainSize);
       var description = new SwapChainDescription()
       {
         IsWindowed = true,
@@ -113,7 +112,7 @@ namespace SharpD12
       dx12Device.CreateDepthStencilView(FrameResource.depthBuffer, dsvDesc, FrameResource.dsvHandle);
 
       // Create command list, which needs to be closed before reset.
-      cmdList = dx12Device.CreateCommandList(CommandListType.Direct, frames[currFrameIdx].cmdAllocator, null);
+      cmdList = dx12Device.CreateCommandList(CommandListType.Direct, frames[fence.FrameIndex].cmdAllocator, null);
       cmdList.Close();
     }
 
@@ -144,7 +143,8 @@ namespace SharpD12
       var renderItem = new StaticRenderItem();
       staticRenderItems.Add(renderItem);
       renderItem.objectConst = new SuperObjectConsts { world = Matrix.Identity };
-      //renderItem.mesh = StaticMesh.CreateBox(dx12Device, 1, 1, 1);
+      //renderItem.mesh = MeshManager.CreateBox(dx12Device, 1, 1, 1);
+      // FRAME DROP because big upload heap.
       renderItem.mesh = MeshManager.LoadExternalModel(dx12Device, "dragon.obj");
       renderItem.albedoTex = "Default";
 

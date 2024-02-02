@@ -31,7 +31,7 @@ namespace SharpD12
       this.PixelWidth = pixelWidth;
       this.TotalSize = totalSize;
       this.MipCount = mips;
-      buffer = new DefaultBuffer<byte>(device, totalSize, BufferDataType.Tex, format, pixelSize, pixelWidth, mips);
+      buffer = new DefaultBuffer<byte>(device, totalSize, BufferDataType.Tex, true, format, pixelSize, pixelWidth, mips);
 
       ShaderResourceViewDescription desc = new ShaderResourceViewDescription()
       {

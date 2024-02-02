@@ -5,7 +5,6 @@ namespace SharpD12
 {
   public class FrameResource
   {
-    public long fenceValue = 0;
     public CommandAllocator cmdAllocator;
     public Resource backBuffer;
     public CpuDescriptorHandle backBufferHandle;

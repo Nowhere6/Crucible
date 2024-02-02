@@ -26,23 +26,19 @@ namespace SharpD12
 
     int width;
     int height;
-    Fence fence;
     Device dx12Device;
     SwapChain swapChain;
     FrameResource[] frames;
-    List<StaticRenderItem> staticRenderItems;
     List<UIRenderItem> uiRenderItems;
+    List<StaticRenderItem> staticRenderItems;
+    FenceSync fence;
     CommandQueue commandQueue;
     GraphicsCommandList cmdList;
     Factory4 factory = new Factory4();
 
-    bool vSyncEnabled = true;
+    bool vSyncEnabled = false;
     ViewportF viewPort;
     Rectangle scissorRectangle;
-    int currFrameIdx = 0;
-    long currFenceValue = 0; // Fence value when previous frame completed.
-    AutoResetEvent syncEvent = new AutoResetEvent(false);
-    IntPtr syncEventHandle;
     private static int rtv_size;
     private static int dsv_size;
     private static int csu_size;
@@ -82,7 +78,7 @@ namespace SharpD12
         scissorRectangle.Width = width;
         scissorRectangle.Height = height;
         // Finish all rendering tasks.
-        FenceSync_FlushCommandQueue();
+        fence.Synchronize(true);
         // Dispose old buffers.
         FrameResource.depthBuffer.Dispose();
         for (int i = 0; i < SwapChainSize; ++i)
@@ -93,7 +89,7 @@ namespace SharpD12
         for (int resIndex = 0; resIndex < SwapChainSize; ++resIndex)
         {
           // Make sure current frame has first buffer in swapchain.
-          int frameIndex = (currFrameIdx + resIndex) % SwapChainSize;
+          int frameIndex = (fence.FrameIndex + resIndex) % SwapChainSize;
           frames[frameIndex].backBuffer = swapChain.GetBackBuffer<Resource>(resIndex);
           dx12Device.CreateRenderTargetView(frames[frameIndex].backBuffer, rtvDesc, frames[frameIndex].backBufferHandle);
         }
@@ -136,7 +132,7 @@ namespace SharpD12
         var item = staticRenderItems[i];
         if (item.NeedUpdate())
         {
-          int elementIndex = MaxStaticRenderItems * currFrameIdx + i;
+          int elementIndex = MaxStaticRenderItems * fence.FrameIndex + i;
           FrameResource.staticRenderItemObjectBuffer.Write(elementIndex, ref item.objectConst);
         }
       }
@@ -147,7 +143,7 @@ namespace SharpD12
         var item = uiRenderItems[i];
         if (item.NeedUpdate())
         {
-          int elementIndex = MaxUIRenderItems * currFrameIdx + i;
+          int elementIndex = MaxUIRenderItems * fence.FrameIndex + i;
           FrameResource.uiRenderItemObjectBuffer.Write(elementIndex, ref item.objectConst);
         }
       }
@@ -193,7 +189,7 @@ namespace SharpD12
       Matrix view = SharpDX.Matrix.LookAtLH(cameraPos, cameraPos + cameraZAxis, Vector3.Up);
       Matrix proj = SharpDX.Matrix.PerspectiveFovLH(MathUtil.DegreesToRadians(60), (float)width / (float)height, 0.1f, 100f);
       var passConst = new SuperPassConsts { viewProj = Matrix.Multiply(view, proj), viewportSize = new Vector4(width, height, 1f / width, 1f / height) };
-      FrameResource.passBuffer.Write(currFrameIdx, ref passConst);
+      FrameResource.passBuffer.Write(fence.FrameIndex, ref passConst);
     }
 
     void Render()
@@ -204,8 +200,8 @@ namespace SharpD12
       commandQueue.ExecuteCommandList(cmdList);
       // Swap the back and front buffers
       swapChain.Present(vSyncEnabled ? 1 : 0, vSyncEnabled ? PresentFlags.None : PresentFlags.AllowTearing);
-      // Fence synchrony
-      FenceSync_MultipleBuffers();
+      // Fence synchronization.
+      fence.Synchronize(false);
     }
 
     /// <summary>
@@ -213,34 +209,34 @@ namespace SharpD12
     /// </summary>
     void PopulateCommandList()
     {
-      frames[currFrameIdx].cmdAllocator.Reset();
-      cmdList.Reset(frames[currFrameIdx].cmdAllocator, PSO.GetPSO(PSOType.PLACEHOLDER));
+      frames[fence.FrameIndex].cmdAllocator.Reset();
+      cmdList.Reset(frames[fence.FrameIndex].cmdAllocator, PSO.GetPSO(PSOType.PLACEHOLDER));
+
+      // Update default heaps.
+      DefaultBuffer<byte>.UpdateAll(cmdList);
 
       // setup viewport and scissors
       cmdList.SetViewport(viewPort);
       cmdList.SetScissorRectangles(scissorRectangle);
 
       // Use barrier to notify that we are using the RenderTarget to clear it
-      cmdList.ResourceBarrierTransition(frames[currFrameIdx].backBuffer, ResourceStates.Present, ResourceStates.RenderTarget);
+      cmdList.ResourceBarrierTransition(frames[fence.FrameIndex].backBuffer, ResourceStates.Present, ResourceStates.RenderTarget);
 
-      cmdList.ClearRenderTargetView(frames[currFrameIdx].backBufferHandle, CleanColor);
+      cmdList.ClearRenderTargetView(frames[fence.FrameIndex].backBufferHandle, CleanColor);
       cmdList.ClearDepthStencilView(FrameResource.dsvHandle, ClearFlags.FlagsDepth, 1.0f, 0);
 
-      cmdList.SetRenderTargets(new CpuDescriptorHandle[] { frames[currFrameIdx].backBufferHandle }, FrameResource.dsvHandle);
+      cmdList.SetRenderTargets(new CpuDescriptorHandle[] { frames[fence.FrameIndex].backBufferHandle }, FrameResource.dsvHandle);
       SRV_Heap.Bind(cmdList);
       cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
       cmdList.SetGraphicsRootSignature(PSO.GetRootSign(PSOType.PLACEHOLDER));
-      cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(currFrameIdx));
-
-      // Update default heaps.
-      DefaultBuffer<byte>.UpdateAll(cmdList);
+      cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(fence.FrameIndex));
 
       // Draw static render items.
       int itemCount = staticRenderItems.Count;
       for (int index = 0; index < itemCount; index++)
       {
         var item = staticRenderItems[index];
-        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.staticRenderItemObjectBuffer.GetGPUAddress(currFrameIdx * MaxStaticRenderItems + index));
+        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.staticRenderItemObjectBuffer.GetGPUAddress(fence.FrameIndex * MaxStaticRenderItems + index));
         cmdList.SetGraphicsRootDescriptorTable(2, Texture.GetHandle(item.albedoTex));
         cmdList.SetVertexBuffer(0, item.mesh.vertexBufferView);
         cmdList.SetIndexBuffer(item.mesh.indexBufferView);
@@ -254,51 +250,75 @@ namespace SharpD12
       for (int index = 0; index < itemCount; index++)
       {
         var item = uiRenderItems[index];
-        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.uiRenderItemObjectBuffer.GetGPUAddress(currFrameIdx * MaxUIRenderItems + index));
+        cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.uiRenderItemObjectBuffer.GetGPUAddress(fence.FrameIndex * MaxUIRenderItems + index));
         cmdList.SetGraphicsRootDescriptorTable(2, Texture.GetHandle(item.tex));
         cmdList.SetVertexBuffer(0, item.mesh.vertexBufferView);
         cmdList.DrawInstanced(item.mesh.VertexCount, 1, 0, 0);
       }
 
       // Use barrier to notify that we are going to present the RenderTarget
-      cmdList.ResourceBarrierTransition(frames[currFrameIdx].backBuffer, ResourceStates.RenderTarget, ResourceStates.Present);
+      cmdList.ResourceBarrierTransition(frames[fence.FrameIndex].backBuffer, ResourceStates.RenderTarget, ResourceStates.Present);
       // Execute the command
       cmdList.Close();
     }
 
-    /// <summary>
-    /// Get next frame resource, wait if no available frame. It's efficent.<br/>
-    /// <b>Invoke after CommandQueue.ExecuteCommandList</b>
-    /// </summary>
-    void FenceSync_MultipleBuffers()
+    /// <summary>Fence synchronization wrapper.</summary>
+    private class FenceSync
     {
-      currFenceValue++;
-      commandQueue.Signal(fence, currFenceValue);
-      frames[currFrameIdx].fenceValue = currFenceValue;
-      // Cycle through the circular frame resource array.
-      currFrameIdx = (currFrameIdx + 1) % SwapChainSize;
-      long fenceValue = frames[currFrameIdx].fenceValue;
-      // Has the GPU finished processing the commands of the current frame resource?
-      // If not, wait until the GPU has completed commands up to this fence point.
-      if (fenceValue > 0 && fence.CompletedValue < fenceValue)
-      {
-        fence.SetEventOnCompletion(fenceValue, syncEventHandle);
-        syncEvent.WaitOne();
-      }
-    }
+      Fence fence;
+      AutoResetEvent syncEvent;
+      CommandQueue commandQueue;
+      long[] frames;
+      int currFrameIdx;
+      IntPtr syncEventHandle;
+      readonly int frameCount;
+      long currFrameCompletedValue;
 
-    /// <summary>
-    /// Wait for all commands to be finished.<br/>
-    /// <b>Don't change currFrameIdx, use whrerever you want.</b>
-    /// </summary>
-    void FenceSync_FlushCommandQueue()
-    {
-      currFenceValue++;
-      commandQueue.Signal(fence, currFenceValue);
-      if (fence.CompletedValue < currFenceValue)
+      public int FrameIndex { get => currFrameIdx; }
+
+      public long CompletedFence { get => currFrameCompletedValue; }
+
+      public FenceSync(Device dx12Device, CommandQueue commandQueue, int frameCount)
       {
-        fence.SetEventOnCompletion(currFenceValue, syncEventHandle);
-        syncEvent.WaitOne();
+        if (frameCount <= 0)
+          throw new ArgumentOutOfRangeException("FrameCount must greater than 0.");
+        frames = new long[frameCount];
+        this.frameCount = frameCount;
+        this.commandQueue = commandQueue;
+        syncEvent = new AutoResetEvent(false);
+        syncEventHandle = syncEvent.SafeWaitHandle.DangerousGetHandle();
+        fence = dx12Device.CreateFence(0, FenceFlags.None);
+        currFrameCompletedValue = 1;
+      }
+
+      ~FenceSync()
+      {
+        // Command queue is owned by engine, do not dispose there.
+        syncEvent.Dispose();
+        fence.Dispose();
+      }
+
+      /// <summary>
+      /// <b>For multi-frame instance:</b> Get next frame index, wait if no available frame.<br/>
+      /// <b>For single-frame instance:</b> Flush command queue.<br/><br/>
+      /// <b>WARNING:</b> Invoke this after ExecuteCommandList()
+      /// </summary>
+      /// <param name="flushQueue"> Frame index unchanges if set this TRUE.</param>
+      public void Synchronize(bool flushQueue)
+      {
+        commandQueue.Signal(fence, currFrameCompletedValue);
+        frames[currFrameIdx] = currFrameCompletedValue;
+        currFrameCompletedValue++;
+        // Cycle through the circular frame resource array.
+        if (!flushQueue) currFrameIdx = (currFrameIdx + 1) % frameCount;
+        long fenceRecord = frames[currFrameIdx];
+        // Has the GPU finished processing the commands of the current frame resource?
+        // If not, wait until the GPU has completed commands up to this fence point.
+        if (fenceRecord > 0 && fence.CompletedValue < fenceRecord)
+        {
+          fence.SetEventOnCompletion(fenceRecord, syncEventHandle);
+          syncEvent.WaitOne();
+        }
       }
     }
   }

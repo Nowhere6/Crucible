@@ -115,16 +115,19 @@ namespace SharpD12
     public readonly BufferDataType bufferType;
     public Resource defaultHeap;
     readonly int pixelWidth;
+    readonly bool readOnly;
     readonly int pixelSize;
     readonly int mipCount;
-    bool dirty = false; // TODO: dirty protection
+    bool dirty;
 
     public int Size => middleBuffer.Size;
 
-    public DefaultBuffer(Device dx12Device, int bytes, BufferDataType bufferType, Format format = Format.R8G8B8A8_UNorm, int pixelSize = 0, int pixelWidth = 0, int mipmaps = 0)
+    public DefaultBuffer(Device dx12Device, int bytes, BufferDataType bufferType, bool isReadonly, Format format = Format.R8G8B8A8_UNorm, int pixelSize = 0, int pixelWidth = 0, int mipmaps = 0)
     {
       // initialize values and create upload buffer.
       this.bufferType = bufferType;
+      this.readOnly = isReadonly;
+      this.dirty = false;
       if (bufferType == BufferDataType.Tex)
       {
         if (typeof(T) != typeof(byte))
@@ -161,15 +164,27 @@ namespace SharpD12
 
     ~DefaultBuffer()
     {
+      UpdateActions -= UpdateAction;
       defaultHeap.Dispose();
     }
 
     private void UpdateAction(GraphicsCommandList cmd)
     {
       if (dirty)
+      {
+        if (middleBuffer == null)
+          throw new InvalidOperationException("Read-only default buffer should be written in same frame where it was created.");
         dirty = false;
-      else
+      }
+      // If read-only default buffer has been updated, delete middle buffer.
+      else if (readOnly)
+      {
+        UpdateActions -= UpdateAction;
+        middleBuffer = null;
         return;
+      }
+      // If mutable default buffer is not dirty, return simply.
+      else return;
 
       // Before barrier
       cmd.ResourceBarrier(new ResourceTransitionBarrier(defaultHeap, ResourceStates.GenericRead, ResourceStates.CopyDestination));
@@ -191,7 +206,7 @@ namespace SharpD12
 
     public void Write(int DestIndex, ref T data)
     {
-      dirty = true;
+      WriteCheck();
       if (bufferType == BufferDataType.Tex)
         throw new NotSupportedException("Only default buffer not of texture can invoke this.");
       middleBuffer.Write(DestIndex, ref data);
@@ -199,7 +214,7 @@ namespace SharpD12
 
     public void Write(int DestIndex, T[] data, int srcIndex = 0, int srcCount = 0)
     {
-      dirty = true;
+      WriteCheck();
       if (bufferType == BufferDataType.Tex)
         throw new NotSupportedException("Only default buffer not of texture can invoke this.");
       if (srcIndex == 0 && srcCount == 0)
@@ -209,7 +224,7 @@ namespace SharpD12
 
     public void TextureWrite(byte[] data)
     {
-      dirty = true;
+      WriteCheck();
       if (bufferType != BufferDataType.Tex)
         throw new NotSupportedException("Only default buffer of texture can invoke this.");
 
@@ -227,12 +242,19 @@ namespace SharpD12
       nativePtr.Free();
     }
 
+    void WriteCheck()
+    {
+      if (dirty && readOnly)
+        throw new NotSupportedException("Read-only default buffer can be written only once.");
+      dirty = true;
+    }
     /////////////////////////////////////////////////////////
     ///                      Static                       ///
     /////////////////////////////////////////////////////////
 
     static event Action<GraphicsCommandList> UpdateActions;
 
+    /// <summary>Invoke this to update all default buffers at the beginning of rendering command list.</summary>
     public static void UpdateAll(GraphicsCommandList cmd) => UpdateActions?.Invoke(cmd);
   }
 }
