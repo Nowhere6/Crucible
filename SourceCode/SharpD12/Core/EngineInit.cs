@@ -57,8 +57,8 @@ namespace SharpD12
     void EngineInitialize()
     {
       CreateQueueAndChain();
+      CreateHeapsAndPSOs();
       CreateFrames();
-      PiplelineConfig();
       LoadTextures();
       UI.BitFont.Reinitialize(dx12Device, PathHelper.GetPath("Font"));
       BuildRenderItems();
@@ -82,44 +82,10 @@ namespace SharpD12
       swapChain = new SwapChain(factory, commandQueue, description);
     }
 
-    void CreateFrames()
+    void CreateHeapsAndPSOs()
     {
-      frames = new FrameResource[SwapChainSize];
-
-      // Create rtv/dsv descriptor heap.
-      var rtvHeapDesc = new DescriptorHeapDescription { Type = DescriptorHeapType.RenderTargetView, DescriptorCount = SwapChainSize };
-      var dsvHeapDesc = new DescriptorHeapDescription { Type = DescriptorHeapType.DepthStencilView, DescriptorCount = 1 };
-      FrameResource.rtvDescHeap = dx12Device.CreateDescriptorHeap(rtvHeapDesc);
-      FrameResource.dsvDescHeap = dx12Device.CreateDescriptorHeap(dsvHeapDesc);
-
-      // Create RTV and command allocator.
-      var rtvDesc = new RenderTargetViewDescription { Format = Format.R8G8B8A8_UNorm, Dimension = RenderTargetViewDimension.Texture2D };
-      foreach (int i in Enumerable.Range(0, SwapChainSize))
-      {
-        frames[i] = new FrameResource();
-        frames[i].backBuffer = swapChain.GetBackBuffer<Resource>(i);
-        frames[i].backBufferHandle = FrameResource.rtvDescHeap.CPUDescriptorHandleForHeapStart + i * RTVSize;
-        frames[i].cmdAllocator = dx12Device.CreateCommandAllocator(CommandListType.Direct);
-        dx12Device.CreateRenderTargetView(frames[i].backBuffer, rtvDesc, frames[i].backBufferHandle);
-      }
-
-      // Create depth buffer and DSV.
-      FrameResource.dsvHandle = FrameResource.dsvDescHeap.CPUDescriptorHandleForHeapStart;
-      var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil | ResourceFlags.DenyShaderResource);
-      var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
-      FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
-      DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
-      dx12Device.CreateDepthStencilView(FrameResource.depthBuffer, dsvDesc, FrameResource.dsvHandle);
-
-      // Create command list, which needs to be closed before reset.
-      cmdList = dx12Device.CreateCommandList(CommandListType.Direct, frames[fence.FrameIndex].cmdAllocator, null);
-      cmdList.Close();
-    }
-
-    void PiplelineConfig()
-    {
-      // Build srv descriptor heap.
-      SRV_Heap.Initialize(dx12Device);
+      // Build all descriptor heaps.
+      DescHeapManager.Initialize(dx12Device);
 
       // Create constant buffer and pass cbv.
       FrameResource.passBuffer = new UploadBuffer<SuperPassConsts>(dx12Device, SwapChainSize, true);
@@ -127,6 +93,32 @@ namespace SharpD12
       FrameResource.uiRenderItemObjectBuffer = new UploadBuffer<SuperObjectConsts>(dx12Device, MaxUIRenderItems * SwapChainSize, true);
 
       PSO.ReInitialize(dx12Device, PathHelper.GetPath("Shaders"));
+    }
+
+    void CreateFrames()
+    {
+      frames = new FrameResource[SwapChainSize];
+
+      // Create RTV and command allocator.
+      var rtvDesc = new RenderTargetViewDescription { Format = Format.R8G8B8A8_UNorm, Dimension = RenderTargetViewDimension.Texture2D };
+      foreach (int i in Enumerable.Range(0, SwapChainSize))
+      {
+        frames[i] = new FrameResource();
+        frames[i].backBuffer = swapChain.GetBackBuffer<Resource>(i);
+        frames[i].rtvIndex = DescHeapManager.CreateView(dx12Device, frames[i].backBuffer, rtvDesc, ViewType.RTV);
+        frames[i].cmdAllocator = dx12Device.CreateCommandAllocator(CommandListType.Direct);
+      }
+
+      // Create depth buffer and DSV.
+      var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil | ResourceFlags.DenyShaderResource);
+      var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
+      FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
+      DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
+      FrameResource.dsvIndex = DescHeapManager.CreateView(dx12Device, FrameResource.depthBuffer, dsvDesc, ViewType.DSV);
+
+      // Create command list, which needs to be closed before reset.
+      cmdList = dx12Device.CreateCommandList(CommandListType.Direct, frames[fence.FrameIndex].cmdAllocator, null);
+      cmdList.Close();
     }
 
     void LoadTextures()

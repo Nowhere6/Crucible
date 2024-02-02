@@ -89,14 +89,14 @@ namespace SharpD12
         // Make sure current frame has first buffer in swapchain.
         int frameIndex = (fence.FrameIndex + resIndex) % SwapChainSize;
         frames[frameIndex].backBuffer = swapChain.GetBackBuffer<Resource>(resIndex);
-        dx12Device.CreateRenderTargetView(frames[frameIndex].backBuffer, rtvDesc, frames[frameIndex].backBufferHandle);
+        frames[frameIndex].rtvIndex = DescHeapManager.CreateView(dx12Device, frames[frameIndex].backBuffer, rtvDesc, ViewType.RTV);
       }
       // Create depth buffer and DSV.
       var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil | ResourceFlags.DenyShaderResource);
       var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
       FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
       DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
-      dx12Device.CreateDepthStencilView(FrameResource.depthBuffer, dsvDesc, FrameResource.dsvHandle);
+      FrameResource.dsvIndex = DescHeapManager.CreateView(dx12Device, FrameResource.depthBuffer, dsvDesc, ViewType.DSV);
     }
 
     void Update()
@@ -223,11 +223,11 @@ namespace SharpD12
       // Use barrier to notify that we are using the RenderTarget to clear it
       cmdList.ResourceBarrierTransition(frames[fence.FrameIndex].backBuffer, ResourceStates.Present, ResourceStates.RenderTarget);
 
-      cmdList.ClearRenderTargetView(frames[fence.FrameIndex].backBufferHandle, CleanColor);
-      cmdList.ClearDepthStencilView(FrameResource.dsvHandle, ClearFlags.FlagsDepth, 1.0f, 0);
+      cmdList.ClearRenderTargetView(DescHeapManager.GetCPUHandle(frames[fence.FrameIndex].rtvIndex, ViewType.RTV), CleanColor);
+      cmdList.ClearDepthStencilView(DescHeapManager.GetCPUHandle(FrameResource.dsvIndex, ViewType.DSV), ClearFlags.FlagsDepth, 1.0f, 0);
 
-      cmdList.SetRenderTargets(new CpuDescriptorHandle[] { frames[fence.FrameIndex].backBufferHandle }, FrameResource.dsvHandle);
-      SRV_Heap.Bind(cmdList);
+      cmdList.SetRenderTargets(1, DescHeapManager.GetCPUHandle(frames[fence.FrameIndex].rtvIndex, ViewType.RTV), DescHeapManager.GetCPUHandle(FrameResource.dsvIndex, ViewType.DSV));
+      DescHeapManager.BindSrvUavHeap(cmdList);
       cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
       cmdList.SetGraphicsRootSignature(PSO.GetRootSign(PSOType.PLACEHOLDER));
       cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(fence.FrameIndex));

@@ -10,14 +10,12 @@ using Resource = SharpDX.Direct3D12.Resource;
 
 namespace SharpD12
 {
-
-
   public class Texture
   {
     public int PixelWidth { get; private set; }
     public int TotalSize { get; private set; }
     public int MipCount { get; private set; }
-    public int SrvIdx { get; private set; }
+    public ushort SrvIdx { get; private set; }
 
     public DefaultBuffer<byte> buffer;
 
@@ -40,7 +38,7 @@ namespace SharpD12
         Dimension = ShaderResourceViewDimension.Texture2D,
         Texture2D = { MipLevels = mips }
       };
-      SrvIdx = SRV_Heap.CreateSRV(device, buffer.defaultHeap, desc);
+      SrvIdx = DescHeapManager.CreateView(device, buffer.defaultHeap, desc, ViewType.SRV);
     }
 
     public void Write(Byte[] data)
@@ -61,7 +59,7 @@ namespace SharpD12
     {
       if (texCollection.TryGetValue(name, out var tex))
       {
-        return SRV_Heap.GetHandle_GPU(tex.SrvIdx);
+        return DescHeapManager.GetGPUHandle(tex.SrvIdx, ViewType.SRV);
       }
       else
       {
@@ -233,68 +231,6 @@ namespace SharpD12
       output = MathF.Pow(((output + 0.055f) / 1.055f), 2.4f);
       output = MathF.Round(output * byte.MaxValue);
       value = (byte)output;
-    }
-  }
-
-  /// <summary> Manage the only SRV heap in game engine. </summary>
-  public static class SRV_Heap
-  {
-    const int MaxSRVCount = 1024;
-
-    static DescriptorHeap descHeap;
-    static Queue<int> avaliableIndex = new Queue<int>();
-    static CpuDescriptorHandle cpuHandle_0;
-    static GpuDescriptorHandle gpuHandle_0;
-
-    public static void Initialize(SharpDX.Direct3D12.Device dx12Device)
-    {
-      if (descHeap != null)
-      {
-        throw new Exception("SRV heap can be initialized only once.");
-      }
-
-      for (int i = 0; i < MaxSRVCount; i++)
-        avaliableIndex.Enqueue(i);
-
-      var heapType = DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView;
-      var cbvHeapDesc = new DescriptorHeapDescription { Type = heapType, DescriptorCount = MaxSRVCount, Flags = DescriptorHeapFlags.ShaderVisible };
-      descHeap = dx12Device.CreateDescriptorHeap(cbvHeapDesc);
-      cpuHandle_0 = descHeap.CPUDescriptorHandleForHeapStart;
-      gpuHandle_0 = descHeap.GPUDescriptorHandleForHeapStart;
-    }
-
-    public static void Bind(GraphicsCommandList cmd) => cmd.SetDescriptorHeaps(descHeap);
-
-    public static CpuDescriptorHandle GetHandle_CPU(int idx)
-    {
-      if (idx >= MaxSRVCount)
-        throw new ArgumentOutOfRangeException(nameof(idx));
-      return cpuHandle_0 + SD12Engine.CSUSize * idx;
-    }
-
-    public static GpuDescriptorHandle GetHandle_GPU(int idx)
-    {
-      if (idx >= MaxSRVCount)
-        throw new ArgumentOutOfRangeException(nameof(idx));
-      return gpuHandle_0 + SD12Engine.CSUSize * idx;
-    }
-
-    public static int CreateSRV(Device dx12Device, Resource res, ShaderResourceViewDescription srvDesc)
-    {
-      if (avaliableIndex.TryDequeue(out int idx))
-      {
-        dx12Device.CreateShaderResourceView(res, srvDesc, GetHandle_CPU(idx));
-        return idx;
-      }
-      else
-        throw new Exception($"SRV heap exhausted.");
-    }
-
-    public static void DeleteSRV(int idx)
-    {
-      if (avaliableIndex.Contains(idx))
-        throw new ArgumentException("Target SRV does not exist.");
-      avaliableIndex.Enqueue(idx);
     }
   }
 

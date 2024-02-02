@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using static System.BitConverter;
 using SharpDX;
 using Device = SharpDX.Direct3D12.Device;
-using SharpDX.Direct2D1;
 
 namespace SharpD12.UI
 {
