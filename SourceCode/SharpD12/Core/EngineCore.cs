@@ -49,10 +49,7 @@ namespace SharpD12
 
     public void Run()
     {
-      // Initialize engine before loop will make program stuck for a while, and form.backcolor don't work in this moment.
-      // Therefore, show form after engine initial could reduces this issue.
       EngineInitialize();
-      form.Show();
 
       Input.Register(form.Handle);
       var loop = new RenderLoop(form);
@@ -69,37 +66,37 @@ namespace SharpD12
 
     void Resize()
     {
-      if (form.DrawingPanel.Width != width || form.DrawingPanel.Height != height)
+      if (form.DrawingPanel.Width == width && form.DrawingPanel.Height == height) return;
+      if (form.WindowState == FormWindowState.Minimized) return;
+
+      width = form.DrawingPanel.Width;
+      height = form.DrawingPanel.Height;
+      viewPort.Width = width;
+      viewPort.Height = height;
+      scissorRectangle.Width = width;
+      scissorRectangle.Height = height;
+      // Finish all rendering tasks.
+      fence.Synchronize(true);
+      // Dispose old buffers.
+      FrameResource.depthBuffer.Dispose();
+      for (int i = 0; i < SwapChainSize; ++i)
+        frames[i].backBuffer.Dispose();
+      // Create new buffers.
+      swapChain.ResizeBuffers(SwapChainSize, width, height, Format.R8G8B8A8_UNorm, SwapChainFlags.AllowTearing);
+      var rtvDesc = new RenderTargetViewDescription { Format = Format.R8G8B8A8_UNorm, Dimension = RenderTargetViewDimension.Texture2D };
+      for (int resIndex = 0; resIndex < SwapChainSize; ++resIndex)
       {
-        width = form.DrawingPanel.Width;
-        height = form.DrawingPanel.Height;
-        viewPort.Width = width;
-        viewPort.Height = height;
-        scissorRectangle.Width = width;
-        scissorRectangle.Height = height;
-        // Finish all rendering tasks.
-        fence.Synchronize(true);
-        // Dispose old buffers.
-        FrameResource.depthBuffer.Dispose();
-        for (int i = 0; i < SwapChainSize; ++i)
-          frames[i].backBuffer.Dispose();
-        // Create new buffers.
-        swapChain.ResizeBuffers(SwapChainSize, width, height, Format.R8G8B8A8_UNorm, SwapChainFlags.AllowTearing);
-        var rtvDesc = new RenderTargetViewDescription { Format = Format.R8G8B8A8_UNorm, Dimension = RenderTargetViewDimension.Texture2D };
-        for (int resIndex = 0; resIndex < SwapChainSize; ++resIndex)
-        {
-          // Make sure current frame has first buffer in swapchain.
-          int frameIndex = (fence.FrameIndex + resIndex) % SwapChainSize;
-          frames[frameIndex].backBuffer = swapChain.GetBackBuffer<Resource>(resIndex);
-          dx12Device.CreateRenderTargetView(frames[frameIndex].backBuffer, rtvDesc, frames[frameIndex].backBufferHandle);
-        }
-        // Create depth buffer and DSV.
-        var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil | ResourceFlags.DenyShaderResource);
-        var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
-        FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
-        DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
-        dx12Device.CreateDepthStencilView(FrameResource.depthBuffer, dsvDesc, FrameResource.dsvHandle);
+        // Make sure current frame has first buffer in swapchain.
+        int frameIndex = (fence.FrameIndex + resIndex) % SwapChainSize;
+        frames[frameIndex].backBuffer = swapChain.GetBackBuffer<Resource>(resIndex);
+        dx12Device.CreateRenderTargetView(frames[frameIndex].backBuffer, rtvDesc, frames[frameIndex].backBufferHandle);
       }
+      // Create depth buffer and DSV.
+      var depthDesc = ResourceDescription.Texture2D(Format.R32_Typeless, width, height, 1, 1, 1, 0, ResourceFlags.AllowDepthStencil | ResourceFlags.DenyShaderResource);
+      var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
+      FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
+      DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
+      dx12Device.CreateDepthStencilView(FrameResource.depthBuffer, dsvDesc, FrameResource.dsvHandle);
     }
 
     void Update()
@@ -152,6 +149,10 @@ namespace SharpD12
     void UpdateDummyCamera()
     {
       // Keyboard
+      if (Input.GetKey(Keys.Menu) && Input.GetKey(Keys.F4))
+        Application.Exit();
+      if (Input.GetKeyDown(Keys.F11))
+        form.SetWindowMode(form.FormBorderStyle != FormBorderStyle.None);
       cameraZAxis = Vector3.Normalize(cameraZAxis);
       Vector3 moveVec = Vector3.Zero;
       if (Input.GetKey(Keys.W))

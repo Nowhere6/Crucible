@@ -1,10 +1,12 @@
 using System;
-using System.Drawing;
 using System.Windows.Forms;
-using Linearstar.Windows.RawInput;
+using SharpDX;
 using SharpDX.Windows;
+using Linearstar.Windows.RawInput;
+
 namespace SharpD12
 {
+  using System.Drawing;
   static class Program
   {
     /// <summary>
@@ -13,10 +15,9 @@ namespace SharpD12
     [STAThread]
     static void Main()
     {
-      int width = 1920;
-      int height = 1080;
-      var form = new CustomedForm(width, height);
-
+      var form = new CustomedForm();
+      form.Show();
+      form.SetWindowSize(1920, 1080);
       try
       {
         var engine = new SD12Engine(form);
@@ -31,23 +32,59 @@ namespace SharpD12
 
   public class CustomedForm : RenderForm
   {
-    public delegate void InputAction(RawInputData msg);
-
-    public event InputAction InputEvent;
-    /// <summary>Because size of form does not equal to size ofrender target, we add this panel for drawing.</summary>
+    Rectangle preWinRectangle;
+    Action<RawInputData> inputEvent;
+    /// <summary>Border size of windows is known, wen acquire it at the beginning.</summary>
+    Size winBorderSize;
+    /// <summary>Form size does NOT equal to content size, add this panel for actual drawing.</summary>
     public Panel DrawingPanel { get; private set; }
-    
-    public CustomedForm(int formWidth, int formHeight) : base()
+
+    public CustomedForm() : base()
     {
       Text = "SharpD12";
-      Width = formWidth;
-      Height = formHeight;
+      Width = 400;
+      Height = 400;
+      MinimumSize = new Size(Width, Height);
       AllowUserResizing = true;
       DrawingPanel = new Panel();
-      DrawingPanel.Margin = new Padding(0);
       DrawingPanel.Dock = DockStyle.Fill;
+      DrawingPanel.Margin = Padding.Empty;
+      DrawingPanel.BackColor = Color.Black;
+      DrawingPanel.BorderStyle = BorderStyle.None;
       Controls.Add(DrawingPanel);
     }
+
+    public void SetWindowSize(int width, int height)
+    {
+      Size newSize = new Size(width, height);
+      if (!Visible)
+        throw new Exception("Show window firstly before setting it.");
+      winBorderSize = Size - DrawingPanel.Size;
+      Size = newSize + winBorderSize;
+    }
+
+    public void SetWindowMode(bool fullScreen, bool allowResizing = true)
+    {
+      AllowUserResizing = true;
+      var targetRect = new Rectangle();
+      if (fullScreen)
+      {
+        if (FormBorderStyle == FormBorderStyle.None) return;
+        FormBorderStyle = FormBorderStyle.None;
+        preWinRectangle = new Rectangle(Location, Size);
+        targetRect = Screen.FromControl(this).Bounds;
+      }
+      else
+      {
+        if (FormBorderStyle != FormBorderStyle.None) return;
+        FormBorderStyle = allowResizing ? FormBorderStyle.Sizable : FormBorderStyle.FixedSingle;
+        targetRect = preWinRectangle;
+      }
+      Size = targetRect.Size;
+      Location = targetRect.Location;
+    }
+
+    public void SetInputEvent(Action<RawInputData> act) => inputEvent = act;
 
     protected override void WndProc(ref Message m)
     {
@@ -56,7 +93,7 @@ namespace SharpD12
       if (m.Msg == WM_INPUT)
       {
         var data = RawInputData.FromHandle(m.LParam);
-        InputEvent?.Invoke(data);
+        inputEvent?.Invoke(data);
       }
     }
   }

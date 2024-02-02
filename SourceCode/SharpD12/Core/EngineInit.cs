@@ -17,7 +17,7 @@ namespace SharpD12
       form = winForm; 
       width = form.DrawingPanel.Width;
       height = form.DrawingPanel.Height;
-      form.InputEvent += Input.PerMessageProcess;
+      form.SetInputEvent(Input.PerMessageProcess);
       viewPort = new ViewportF(0, 0, width, height);
       scissorRectangle = new Rectangle(0, 0, width, height);
       CreateDX12Device();
