@@ -89,6 +89,7 @@ namespace SharpD12
         // Make sure current frame has first buffer in swapchain.
         int frameIndex = (fence.FrameIndex + resIndex) % SwapChainSize;
         frames[frameIndex].backBuffer = swapChain.GetBackBuffer<Resource>(resIndex);
+        DescHeapManager.RemoveView(frames[frameIndex].rtvIndex, ViewType.RTV);
         frames[frameIndex].rtvIndex = DescHeapManager.CreateView(dx12Device, frames[frameIndex].backBuffer, rtvDesc, ViewType.RTV);
       }
       // Create depth buffer and DSV.
@@ -96,6 +97,7 @@ namespace SharpD12
       var optimizedClear = new ClearValue { Format = Format.D32_Float, DepthStencil = new DepthStencilValue { Depth = 1.0f } };
       FrameResource.depthBuffer = dx12Device.CreateCommittedResource(new HeapProperties(HeapType.Default), HeapFlags.None, depthDesc, ResourceStates.DepthWrite, optimizedClear);
       DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
+      DescHeapManager.RemoveView(FrameResource.dsvIndex, ViewType.DSV);
       FrameResource.dsvIndex = DescHeapManager.CreateView(dx12Device, FrameResource.depthBuffer, dsvDesc, ViewType.DSV);
     }
 

@@ -7,12 +7,10 @@ namespace SharpD12
   {
     public CommandAllocator cmdAllocator;
     public Resource backBuffer;
-    public CpuDescriptorHandle backBufferHandle;
+    public ushort rtvIndex;
 
     public static Resource depthBuffer;
-    public static CpuDescriptorHandle dsvHandle;
-    public static DescriptorHeap rtvDescHeap;
-    public static DescriptorHeap dsvDescHeap;
+    public static ushort dsvIndex;
     public static UploadBuffer<SuperPassConsts> passBuffer;
     public static UploadBuffer<SuperObjectConsts> staticRenderItemObjectBuffer;
     public static UploadBuffer<SuperObjectConsts> uiRenderItemObjectBuffer;

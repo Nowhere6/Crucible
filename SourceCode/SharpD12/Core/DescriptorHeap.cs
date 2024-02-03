@@ -148,7 +148,7 @@ namespace SharpD12
       throw new Exception($"Create descriptor failed.");
     }
 
-    public static void DeleteView(ushort idx, ViewType viewType)
+    public static void RemoveView(ushort idx, ViewType viewType)
     {
       switch (viewType)
       {
@@ -163,7 +163,7 @@ namespace SharpD12
         case ViewType.DSV:
         default:
           if (srvUavAvaliableIndex.Contains(idx)) break;
-          srvUavAvaliableIndex.Enqueue(idx); return;
+          dsvAvaliableIndex.Enqueue(idx); return;
       }
       throw new ArgumentException($"{viewType.ToString()} descriptor deletion failed.");
     }
