@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SharpDX;
 using SharpDX.DXGI;
 using SharpDX.Direct3D12;
@@ -15,7 +16,7 @@ namespace SharpD12
   }
 
   /// <summary> Generic upload heap wrapper class. </summary>
-  public class UploadBuffer<T> where T : struct
+  public class UploadBuffer<T> : IDisposable where T : struct
   {
     readonly BufferDataType bufferType;
     readonly int elementSize;
@@ -63,11 +64,7 @@ namespace SharpD12
       uploadHeap = dx12Device.CreateCommittedResource(props, HeapFlags.None, resDesc, state);
     }
 
-    ~UploadBuffer()
-    {
-      // Mapping data will be invalid automatically after ID3D12Resource is disposed.
-      uploadHeap.Dispose();
-    }
+    public void Dispose() => uploadHeap.Dispose();
 
     public long GetGPUAddress(int index = 0) => gpuAddr + index * elementSize;
 
@@ -109,7 +106,7 @@ namespace SharpD12
   }
 
   /// <summary> Generic default heap wrapper class. </summary>
-  public class DefaultBuffer<T> where T : struct
+  public class DefaultBuffer<T> : IDisposable where T : struct
   {
     public UploadBuffer<T> middleBuffer;
     public readonly BufferDataType bufferType;
@@ -118,9 +115,10 @@ namespace SharpD12
     readonly bool readOnly;
     readonly int pixelSize;
     readonly int mipCount;
+    readonly int size;
     bool dirty;
 
-    public int Size => middleBuffer.Size;
+    public int Size => size;
 
     public DefaultBuffer(Device dx12Device, int bytes, BufferDataType bufferType, bool isReadonly, Format format = Format.R8G8B8A8_UNorm, int pixelSize = 0, int pixelWidth = 0, int mipmaps = 0)
     {
@@ -139,10 +137,8 @@ namespace SharpD12
         this.mipCount = mipmaps;
         middleBuffer = new UploadBuffer<T>(dx12Device, format, pixelWidth, mipmaps);
       }
-      else
-      {
-        middleBuffer = new UploadBuffer<T>(dx12Device, bytes / Utilities.SizeOf<T>(), bufferType == BufferDataType.CB);
-      }
+      else middleBuffer = new UploadBuffer<T>(dx12Device, bytes / Utilities.SizeOf<T>(), bufferType == BufferDataType.CB);
+      this.size = middleBuffer.Size;
 
       // Create defualt heap.
       var props = new HeapProperties(HeapType.Default);
@@ -159,31 +155,19 @@ namespace SharpD12
       defaultHeap = dx12Device.CreateCommittedResource(props, HeapFlags.None, desc, state);
 
       // Subscribe update event.
-      UpdateActions += UpdateAction;
+      DefaultBufferUpdater.Register(UpdateAction);
     }
 
-    ~DefaultBuffer()
+    public void Dispose()
     {
-      UpdateActions -= UpdateAction;
+      DefaultBufferUpdater.UnRegister(UpdateAction);
+      if (middleBuffer != null) middleBuffer.Dispose();
       defaultHeap.Dispose();
     }
 
-    private void UpdateAction(GraphicsCommandList cmd)
+    private void UpdateAction(GraphicsCommandList cmd, long targetFence)
     {
-      if (dirty)
-      {
-        if (middleBuffer == null)
-          throw new InvalidOperationException("Read-only default buffer should be written in same frame where it was created.");
-        dirty = false;
-      }
-      // If read-only default buffer has been updated, delete middle buffer.
-      else if (readOnly)
-      {
-        UpdateActions -= UpdateAction;
-        middleBuffer = null;
-        return;
-      }
-      // If mutable default buffer is not dirty, return simply.
+      if (dirty) dirty = false;
       else return;
 
       // Before barrier
@@ -202,6 +186,14 @@ namespace SharpD12
 
       // After barrier
       cmd.ResourceBarrier(new ResourceTransitionBarrier(defaultHeap, ResourceStates.CopyDestination, ResourceStates.GenericRead));
+
+      // Release middle heap after update of read-only buffer.
+      if (readOnly)
+      {
+        DefaultBufferUpdater.UnRegister(UpdateAction);
+        DelayReleaseManager.Enqueue(targetFence, middleBuffer);
+        middleBuffer = null;
+      }
     }
 
     public void Write(int DestIndex, ref T data)
@@ -244,17 +236,56 @@ namespace SharpD12
 
     void WriteCheck()
     {
-      if (dirty && readOnly)
-        throw new NotSupportedException("Read-only default buffer can be written only once.");
+      if (readOnly && middleBuffer == null)
+        throw new NotSupportedException("Middle buffer of read-only default buffer has already released.");
       dirty = true;
     }
-    /////////////////////////////////////////////////////////
-    ///                      Static                       ///
-    /////////////////////////////////////////////////////////
+  }
 
-    static event Action<GraphicsCommandList> UpdateActions;
+  static public class DefaultBufferUpdater
+  {
+    static event Action<GraphicsCommandList, long> UpdateActions;
+
+    public static void Register(Action<GraphicsCommandList, long> update) => UpdateActions += update;
+
+    public static void UnRegister(Action<GraphicsCommandList, long> update) => UpdateActions -= update;
 
     /// <summary>Invoke this to update all default buffers at the beginning of rendering command list.</summary>
-    public static void UpdateAll(GraphicsCommandList cmd) => UpdateActions?.Invoke(cmd);
+    public static void UpdateAll(GraphicsCommandList cmd, long targetFence) => UpdateActions?.Invoke(cmd, targetFence);
+  }
+
+  static public class DelayReleaseManager
+  {
+    private class Item
+    {
+      public long targetFence;
+      public IDisposable item;
+      public Item(long targetFence, IDisposable item)
+      {
+        this.targetFence = targetFence;
+        this.item = item;
+      }
+    }
+
+    private static Queue<Item> releaseQueue = new Queue<Item>();
+
+    /// <summary>
+    /// Enqueue an element for delay release. <br/>
+    /// <b> NEVER hold enqueued element outside of DelayReleaseManager, otherwise memory leaks.</b>
+    /// </summary>
+    /// <param name="itemTargetFence"> Target fence of frame which item stayed in last. </param>
+    public static void Enqueue(long itemTargetFence, IDisposable item) => releaseQueue.Enqueue(new Item(itemTargetFence, item));
+
+    public static void Update(long completedFence)
+    {
+      if (completedFence == 0) return;
+      while(releaseQueue.TryPeek(out Item obj))
+      {
+        // FIFO means if one element dequeued is uncompleted, remains also.
+        if (completedFence < obj.targetFence) break;
+        releaseQueue.Dequeue();
+        obj.item.Dispose();
+      }
+    }
   }
 }

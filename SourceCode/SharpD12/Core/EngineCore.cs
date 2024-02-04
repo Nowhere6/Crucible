@@ -37,6 +37,7 @@ namespace SharpD12
     Factory4 factory = new Factory4();
 
     bool vSyncEnabled = false;
+    bool enableDebugLayer = false;
     ViewportF viewPort;
     Rectangle scissorRectangle;
     private static int rtv_size;
@@ -55,14 +56,30 @@ namespace SharpD12
       var loop = new RenderLoop(form);
       while (loop.NextFrame())
       {
-        Resize();
-        // Update and render for MiniEngine
-        Update();
-        Render();
+        Resize(); Update(); Render();
+        fence.Synchronize(false);
       }
       Input.UnRegister();
       loop.Dispose();
     }
+
+    /*void MemoryLeakExample()
+    {
+      // Memory leak example
+      uiRenderItems[0].mesh = MeshManager.MakeSimpleTextMesh(dx12Device, new string('a', 1 << 15));
+      // EXPLAINATION
+      // Even we add finalizer which has dispose() into mesh class, ID3D12Resource stil can't be released correctly.
+      // The only way to resolve this is to implement dispose() for ID3D12Resource container class and invoke dispose() manually.
+      // But ID3D12Resource which you want to release may be used in previous frames, so delay release is required.
+
+      // Memory leak fix example
+      //DelayReleaseManager.Enqueue(fence.TargetFence, uiRenderItems[0]);
+      //var uiRenderItem = new UIRenderItem();
+      //uiRenderItem.objectConst = new SuperObjectConsts { color = Vector4.One };
+      //uiRenderItem.mesh = MeshManager.MakeSimpleTextMesh(dx12Device, new string('a', 1 << 15));
+      //uiRenderItem.tex = UI.BitFont.Name;
+      //uiRenderItems[0] = uiRenderItem;
+    }*/
 
     void Resize()
     {
@@ -104,7 +121,7 @@ namespace SharpD12
     void Update()
     {
       UpdateTimer();
-      Input.Update();
+      Input.Update(); DelayReleaseManager.Update(fence.CompletedFence);
       UpdateRenderItems();
       UpdateDummyCamera();
     }
@@ -203,8 +220,6 @@ namespace SharpD12
       commandQueue.ExecuteCommandList(cmdList);
       // Swap the back and front buffers
       swapChain.Present(vSyncEnabled ? 1 : 0, vSyncEnabled ? PresentFlags.None : PresentFlags.AllowTearing);
-      // Fence synchronization.
-      fence.Synchronize(false);
     }
 
     /// <summary>
@@ -216,7 +231,7 @@ namespace SharpD12
       cmdList.Reset(frames[fence.FrameIndex].cmdAllocator, PSO.GetPSO(PSOType.PLACEHOLDER));
 
       // Update default heaps.
-      DefaultBuffer<byte>.UpdateAll(cmdList);
+      DefaultBufferUpdater.UpdateAll(cmdList, fence.TargetFence);
 
       // setup viewport and scissors
       cmdList.SetViewport(viewPort);
@@ -275,11 +290,14 @@ namespace SharpD12
       int currFrameIdx;
       IntPtr syncEventHandle;
       readonly int frameCount;
+      long cachedCompletedValue;
       long currFrameCompletedValue;
 
-      public int FrameIndex { get => currFrameIdx; }
+      public int FrameIndex => currFrameIdx;
 
-      public long CompletedFence { get => currFrameCompletedValue; }
+      public long CompletedFence => cachedCompletedValue;
+
+      public long TargetFence => currFrameCompletedValue;
 
       public FenceSync(Device dx12Device, CommandQueue commandQueue, int frameCount)
       {
@@ -322,6 +340,7 @@ namespace SharpD12
           fence.SetEventOnCompletion(fenceRecord, syncEventHandle);
           syncEvent.WaitOne();
         }
+        cachedCompletedValue = fence.CompletedValue;
       }
     }
   }

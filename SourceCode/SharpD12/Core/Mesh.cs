@@ -200,20 +200,20 @@ namespace SharpD12
     }
   }
 
-  public class StaticMesh
+  public class StaticMesh : IDisposable
   {
     // Vertex buffer.
     readonly int vertexCount;
     public int VertexCount { get => vertexCount; }
     public readonly Vertex[] vertices;
-    UploadBuffer<Vertex> vertexBuffer;
+    DefaultBuffer<Vertex> vertexBuffer;
     public readonly VertexBufferView vertexBufferView;
 
     // Index buffer.
     readonly int indexCount;
     public int IndexCount { get => indexCount; }
     public readonly uint[] indices;
-    UploadBuffer<uint> indexBuffer;
+    DefaultBuffer<uint> indexBuffer;
     public readonly IndexBufferView indexBufferView;
 
     public StaticMesh(Device device, Vertex[] _vertices, uint[] _indices)
@@ -221,30 +221,37 @@ namespace SharpD12
       // Build vertex buffer.
       vertices = _vertices;
       vertexCount = vertices.Length;
-      vertexBuffer = new UploadBuffer<Vertex>(device, vertexCount, false);
+      vertexBuffer = new DefaultBuffer<Vertex>(device, vertexCount * Utilities.SizeOf<Vertex>(), BufferDataType.VBIB, true);
       vertexBuffer.Write(0, vertices);
       vertexBufferView = new VertexBufferView()
       {
-        BufferLocation = vertexBuffer.GetGPUAddress(),
-        StrideInBytes = vertexBuffer.ElementSize,
+        BufferLocation = vertexBuffer.defaultHeap.GPUVirtualAddress,
+        StrideInBytes = Utilities.SizeOf<Vertex>(),
         SizeInBytes = vertexBuffer.Size
       };
 
       // Build index buffer.
       indices = _indices;
       indexCount = indices.Length;
-      indexBuffer = new UploadBuffer<uint>(device, indexCount, false);
+      indexBuffer = new DefaultBuffer<uint>(device, indexCount * Utilities.SizeOf<uint>(), BufferDataType.VBIB, true);
       indexBuffer.Write(0, indices);
       indexBufferView = new IndexBufferView()
       {
-        BufferLocation = indexBuffer.GetGPUAddress(),
+        BufferLocation = indexBuffer.defaultHeap.GPUVirtualAddress,
         SizeInBytes = indexBuffer.Size,
         Format = Format.R32_UInt
       };
     }
+
+    public void Dispose()
+    {
+      vertexBuffer.Dispose();
+      indexBuffer.Dispose();
+    }
   }
 
-  public class UIMesh
+  // TODO: Temporary implementation
+  public class UIMesh : IDisposable
   {
     // Vertex buffer.
     public int VertexCount { get => vertexCount; }
@@ -267,5 +274,7 @@ namespace SharpD12
         SizeInBytes = vertexBuffer.Size
       };
     }
+
+    public void Dispose() => vertexBuffer.Dispose();
   }
 }

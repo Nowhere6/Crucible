@@ -14,7 +14,7 @@ namespace SharpD12
   {
     public SD12Engine(CustomedForm winForm)
     {
-      form = winForm; 
+      form = winForm;
       width = form.DrawingPanel.Width;
       height = form.DrawingPanel.Height;
       form.SetInputEvent(Input.PerMessageProcess);
@@ -31,10 +31,9 @@ namespace SharpD12
     /// </summary>
     void CreateDX12Device()
     {
-#if DEBUG
       // Enable the D3D12 debug layer.
-      DebugInterface.Get().EnableDebugLayer();
-#endif
+      if (enableDebugLayer) DebugInterface.Get().EnableDebugLayer();
+
       try
       {
         try
