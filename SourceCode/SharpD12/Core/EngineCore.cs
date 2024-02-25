@@ -83,11 +83,11 @@ namespace SharpD12
 
     void Resize()
     {
-      if (form.DrawingPanel.Width == width && form.DrawingPanel.Height == height) return;
+      if (form.ClientSize.Width == width && form.ClientSize.Height == height) return;
       if (form.WindowState == FormWindowState.Minimized) return;
 
-      width = form.DrawingPanel.Width;
-      height = form.DrawingPanel.Height;
+      width = form.ClientSize.Width;
+      height = form.ClientSize.Height;
       viewPort.Width = width;
       viewPort.Height = height;
       scissorRectangle.Width = width;

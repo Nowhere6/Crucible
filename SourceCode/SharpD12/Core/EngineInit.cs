@@ -15,8 +15,8 @@ namespace SharpD12
     public SD12Engine(CustomedForm winForm)
     {
       form = winForm;
-      width = form.DrawingPanel.Width;
-      height = form.DrawingPanel.Height;
+      width = form.ClientSize.Width;
+      height = form.ClientSize.Height;
       form.SetInputEvent(Input.PerMessageProcess);
       viewPort = new ViewportF(0, 0, width, height);
       scissorRectangle = new Rectangle(0, 0, width, height);
@@ -70,7 +70,7 @@ namespace SharpD12
       var description = new SwapChainDescription()
       {
         IsWindowed = true,
-        OutputHandle = form.DrawingPanel.Handle,
+        OutputHandle = form.Handle,
         BufferCount = SwapChainSize,
         Usage = Usage.RenderTargetOutput,
         SwapEffect = SwapEffect.FlipDiscard,

@@ -16,8 +16,8 @@ namespace SharpD12
     static void Main()
     {
       var form = new CustomedForm();
+      form.SetContentSize(1920, 1080);
       form.Show();
-      form.SetWindowSize(1920, 1080);
       try
       {
         var engine = new SD12Engine(form);
@@ -32,55 +32,37 @@ namespace SharpD12
 
   public class CustomedForm : RenderForm
   {
-    Rectangle preWinRectangle;
+    Rectangle preWinRect;
     Action<RawInputData> inputEvent;
-    /// <summary>Border size of windows is known, wen acquire it at the beginning.</summary>
-    Size winBorderSize;
-    /// <summary>Form size does NOT equal to content size, add this panel for actual drawing.</summary>
-    public Panel DrawingPanel { get; private set; }
-
+    static string defaultName = "SharpD12";
+    static Size minSize = new Size(400, 400);
+    
     public CustomedForm() : base()
     {
-      Text = "SharpD12";
-      Width = 400;
-      Height = 400;
-      MinimumSize = new Size(Width, Height);
+      Text = defaultName;
+      Size = minSize;
+      MinimumSize = minSize;
       AllowUserResizing = true;
-      DrawingPanel = new Panel();
-      DrawingPanel.Dock = DockStyle.Fill;
-      DrawingPanel.Margin = Padding.Empty;
-      DrawingPanel.BackColor = Color.Black;
-      DrawingPanel.BorderStyle = BorderStyle.None;
-      Controls.Add(DrawingPanel);
     }
 
-    public void SetWindowSize(int width, int height)
-    {
-      Size newSize = new Size(width, height);
-      if (!Visible)
-        throw new Exception("Show window firstly before setting it.");
-      winBorderSize = Size - DrawingPanel.Size;
-      Size = newSize + winBorderSize;
-    }
+    public void SetContentSize(int width, int height) => ClientSize = new Size(width, height); // ClientSize excludes border size. 
 
     public void SetWindowMode(bool fullScreen, bool allowResizing = true)
     {
-      AllowUserResizing = true;
+      AllowUserResizing = allowResizing;
       var targetRect = new Rectangle();
       if (fullScreen)
       {
-        if (FormBorderStyle == FormBorderStyle.None) return;
         FormBorderStyle = FormBorderStyle.None;
-        preWinRectangle = new Rectangle(Location, Size);
+        preWinRect = new Rectangle(Location, ClientSize);
         targetRect = Screen.FromControl(this).Bounds;
       }
       else
       {
-        if (FormBorderStyle != FormBorderStyle.None) return;
         FormBorderStyle = allowResizing ? FormBorderStyle.Sizable : FormBorderStyle.FixedSingle;
-        targetRect = preWinRectangle;
+        targetRect = preWinRect;
       }
-      Size = targetRect.Size;
+      ClientSize = targetRect.Size;
       Location = targetRect.Location;
     }
 
