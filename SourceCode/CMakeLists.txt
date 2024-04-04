@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 
 set(CMAKE_DOTNET_SDK "Microsoft.NET.Sdk")
 
-set(CMAKE_DOTNET_TARGET_FRAMEWORK "net7.0-windows") # "net7.0-windows"
+set(CMAKE_DOTNET_TARGET_FRAMEWORK "net8.0-windows") # "net7.0-windows"
 
 project(SharpD12Solution LANGUAGES CSharp)
 
