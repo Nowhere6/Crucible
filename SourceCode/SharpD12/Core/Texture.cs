@@ -254,14 +254,40 @@ namespace SharpD12
           AddressUVW = TextureAddressMode.Clamp,
           ShaderVisibility = ShaderVisibility.All,
         },
-        new StaticSamplerDescription() // Anisotropic-Wrap (Mesh)
+        new StaticSamplerDescription() // Trilinear-Wrap (Post-processing / UI)
         {
           ShaderRegister = 2,
+          MaxLOD = float.MaxValue,
+          Filter = Filter.MinMagMipLinear,
+          AddressUVW = TextureAddressMode.Clamp,
+          ShaderVisibility = ShaderVisibility.All,
+        },
+        new StaticSamplerDescription() // Anisotropic-Clamp (Mesh)
+        {
+          ShaderRegister = 3,
           MaxLOD = float.MaxValue,
           Filter = Filter.Anisotropic,
           AddressUVW = TextureAddressMode.Wrap,
           ShaderVisibility = ShaderVisibility.All,
           MaxAnisotropy = AppConstants.AnisotropyLevel
+        },
+        new StaticSamplerDescription() // Anisotropic-Wrap (Mesh)
+        {
+          ShaderRegister = 4,
+          MaxLOD = float.MaxValue,
+          Filter = Filter.Anisotropic,
+          AddressUVW = TextureAddressMode.Wrap,
+          ShaderVisibility = ShaderVisibility.All,
+          MaxAnisotropy = AppConstants.AnisotropyLevel
+        },
+        new StaticSamplerDescription() // LessEqual-PCF-Comparison (Shadow)
+        {
+          ShaderRegister = 5,
+          MaxLOD = 0,
+          Filter = Filter.ComparisonMinMagLinearMipPoint,
+          AddressUVW = TextureAddressMode.Clamp,
+          ShaderVisibility = ShaderVisibility.All,
+          ComparisonFunc = Comparison.LessEqual,
         }
       };
   }

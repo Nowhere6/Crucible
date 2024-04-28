@@ -1,4 +1,4 @@
-#include "Shared.hlsl"
+#include "Common.hlsl"
 
 VertexOut VS(VertexIn vin)
 {
@@ -12,7 +12,7 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-  float4 c = Tex(texAlbedo, pin.uv);
+  float4 c = tex0.Sample(Ani, pin.uv);
   c = EncodeSRGB(c);
   return c;
 }

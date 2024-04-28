@@ -1,4 +1,4 @@
-#include "Shared.hlsl"
+#include "Common.hlsl"
 
 float4 Screen2Perspective(float2 pos)
 {
@@ -18,7 +18,7 @@ UIVertexOut VS(UIVertexIn vin)
 float4 PS(UIPixelIn pin) : SV_Target
 {
   clip(pin.id % 4 <= 1 ? 1 : -1);
-  float alpha = TexT(texAlbedo, pin.uv).r;
+  float alpha =  tex0.Sample(Tri, pin.uv).r;
   clip(alpha - 0.01);
   float4 c = float4(color.rgb, alpha);
   c = EncodeSRGB(c);
