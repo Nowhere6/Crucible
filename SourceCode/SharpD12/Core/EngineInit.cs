@@ -5,8 +5,8 @@ using SharpDX;
 using SharpDX.DXGI;
 using SharpDX.Direct3D12;
 using static SharpD12.AppConstants;
-using Device = SharpDX.Direct3D12.Device;
-using Resource = SharpDX.Direct3D12.Resource;
+using D12Device = SharpDX.Direct3D12.Device;
+using D12Resource = SharpDX.Direct3D12.Resource;
 
 namespace SharpD12;
 
@@ -38,12 +38,12 @@ public partial class SD12Engine
     {
       try
       {
-        dx12Device = new Device(null, DX12FeatureLevel);
+        dx12Device = new D12Device(null, DX12FeatureLevel);
       }
       catch
       {
         MessageBox.Show("Can't create ID3D12Device for GPU, use warp instead.", "Fatal Error", MessageBoxButtons.OK);
-        dx12Device = new Device(factory.GetWarpAdapter(), DX12FeatureLevel);
+        dx12Device = new D12Device(factory.GetWarpAdapter(), DX12FeatureLevel);
       }
     }
     catch
@@ -103,7 +103,7 @@ public partial class SD12Engine
     foreach (int i in Enumerable.Range(0, SwapChainSize))
     {
       frames[i] = new FrameResource();
-      frames[i].backBuffer = swapChain.GetBackBuffer<Resource>(i);
+      frames[i].backBuffer = swapChain.GetBackBuffer<D12Resource>(i);
       frames[i].rtvIndex = DescHeapManager.CreateView(dx12Device, frames[i].backBuffer, rtvDesc, ViewType.RTV);
       frames[i].cmdAllocator = dx12Device.CreateCommandAllocator(CommandListType.Direct);
     }

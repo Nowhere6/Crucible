@@ -5,7 +5,7 @@ using SharpDX.Windows;
 using Linearstar.Windows.RawInput;
 
 namespace SharpD12;
-using SharpDX.DXGI;
+
 using System.Drawing;
 
 static class Program

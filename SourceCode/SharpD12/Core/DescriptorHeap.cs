@@ -36,7 +36,7 @@ public static class DescHeapManager
   static CpuDescriptorHandle dsvCPUHandle_0;
   static GpuDescriptorHandle dsvGPUHandle_0;
 
-  public static void Initialize(SharpDX.Direct3D12.Device dx12Device)
+  public static void Initialize(Device dx12Device)
   {
     if (srvUavDescHeap != null || rtvDescHeap != null || dsvDescHeap != null)
     {

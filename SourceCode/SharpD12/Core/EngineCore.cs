@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using static SharpD12.AppConstants;
-using Device = SharpDX.Direct3D12.Device;
-using Resource = SharpDX.Direct3D12.Resource;
+using D12Device = SharpDX.Direct3D12.Device;
+using D12Resource = SharpDX.Direct3D12.Resource;
 
 namespace SharpD12;
 
@@ -26,7 +26,7 @@ public partial class SD12Engine
 
   int width;
   int height;
-  Device dx12Device;
+  D12Device dx12Device;
   SwapChain swapChain;
   FrameResource[] frames;
   List<UIRenderItem> uiRenderItems;
@@ -105,7 +105,7 @@ public partial class SD12Engine
     {
       // Make sure current frame has first buffer in swapchain.
       int frameIndex = (fence.FrameIndex + resIndex) % SwapChainSize;
-      frames[frameIndex].backBuffer = swapChain.GetBackBuffer<Resource>(resIndex);
+      frames[frameIndex].backBuffer = swapChain.GetBackBuffer<D12Resource>(resIndex);
       DescHeapManager.RemoveView(frames[frameIndex].rtvIndex, ViewType.RTV);
       frames[frameIndex].rtvIndex = DescHeapManager.CreateView(dx12Device, frames[frameIndex].backBuffer, rtvDesc, ViewType.RTV);
     }
@@ -299,7 +299,7 @@ public partial class SD12Engine
 
     public long TargetFence => currFrameCompletedValue;
 
-    public FenceSync(Device dx12Device, CommandQueue commandQueue, int frameCount)
+    public FenceSync(D12Device dx12Device, CommandQueue commandQueue, int frameCount)
     {
       if (frameCount <= 0)
         throw new ArgumentOutOfRangeException("FrameCount must greater than 0.");

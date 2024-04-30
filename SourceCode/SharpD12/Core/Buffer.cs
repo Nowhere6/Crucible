@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using SharpDX;
 using SharpDX.DXGI;
 using SharpDX.Direct3D12;
-using Device = SharpDX.Direct3D12.Device;
-using Resource = SharpDX.Direct3D12.Resource;
+using D12Device = SharpDX.Direct3D12.Device;
+using D12Resource = SharpDX.Direct3D12.Resource;
 
 namespace SharpD12;
 
@@ -24,7 +24,7 @@ public class UploadBuffer<T> : IDisposable where T : struct
   readonly int count;
   readonly IntPtr mappedPtr;
   readonly long gpuAddr;
-  public Resource uploadHeap;
+  public D12Resource uploadHeap;
 
   public int ElementSize { get => elementSize; }
   public int Size { get => totalSize; }
@@ -32,7 +32,7 @@ public class UploadBuffer<T> : IDisposable where T : struct
   /// <summary>
   /// Create upload buffer for constant/vertex/index buffer.
   /// </summary>
-  public UploadBuffer(Device dx12Device, int elementCount, bool isConstantBuffer)
+  public UploadBuffer(D12Device dx12Device, int elementCount, bool isConstantBuffer)
   {
     elementSize = Utilities.SizeOf<T>();
     bufferType = isConstantBuffer ? BufferDataType.CB : BufferDataType.VBIB;
@@ -55,7 +55,7 @@ public class UploadBuffer<T> : IDisposable where T : struct
   /// Create special intermediate buffer for texture.<br/>
   /// <b>Texture resource cannot be created on upload heap.</b>
   /// </summary>
-  public UploadBuffer(Device dx12Device, Format format, int widthPixels, int mipmaps)
+  public UploadBuffer(D12Device dx12Device, Format format, int widthPixels, int mipmaps)
   {
     bufferType = BufferDataType.Tex;
     var resDesc = ResourceDescription.Texture2D(format, widthPixels, widthPixels, 1, (short)mipmaps);
@@ -110,7 +110,7 @@ public class DefaultBuffer<T> : IDisposable where T : struct
 {
   public UploadBuffer<T> middleBuffer;
   public readonly BufferDataType bufferType;
-  public Resource defaultHeap;
+  public D12Resource defaultHeap;
   readonly int pixelWidth;
   readonly bool readOnly;
   readonly int pixelSize;
@@ -120,7 +120,7 @@ public class DefaultBuffer<T> : IDisposable where T : struct
 
   public int Size => size;
 
-  public DefaultBuffer(Device dx12Device, int bytes, BufferDataType bufferType, bool isReadonly, Format format = Format.R8G8B8A8_UNorm, int pixelSize = 0, int pixelWidth = 0, int mipmaps = 0)
+  public DefaultBuffer(D12Device dx12Device, int bytes, BufferDataType bufferType, bool isReadonly, Format format = Format.R8G8B8A8_UNorm, int pixelSize = 0, int pixelWidth = 0, int mipmaps = 0)
   {
     // initialize values and create upload buffer.
     this.bufferType = bufferType;

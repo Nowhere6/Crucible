@@ -5,8 +5,7 @@ using SharpDX.IO;
 using SharpDX.WIC;
 using SharpDX.DXGI;
 using SharpDX.Direct3D12;
-using Device = SharpDX.Direct3D12.Device;
-using Resource = SharpDX.Direct3D12.Resource;
+using D12Device = SharpDX.Direct3D12.Device;
 
 namespace SharpD12;
 
@@ -22,7 +21,7 @@ public class Texture
   /// <summary>
   /// Create an empty texture.
   /// </summary>
-  private Texture(Device device, Format format, int pixelSize, int totalSize, int pixelWidth, int mips)
+  private Texture(D12Device device, Format format, int pixelSize, int totalSize, int pixelWidth, int mips)
   {
     if (mips < 1)
       throw new ArgumentException("The count of mipmaps must be greater than 0.");
@@ -77,7 +76,7 @@ public class Texture
       throw new ArgumentException($"Texture named \"{name}\" does not exist.");
   }
 
-  public static void Load_PNG_RGBA32_AutoMip(Device device, string loc, string name)
+  public static void Load_PNG_RGBA32_AutoMip(D12Device device, string loc, string name)
   {
     if (Path.GetExtension(loc) != ".png")
       throw new ArgumentException($"Bitmap isn't png format. loc={loc}");
@@ -164,7 +163,7 @@ public class Texture
     texCollection.Add(name, texture);
   }
 
-  public static void Load_PNG_R8_NoMip(Device device, string loc, string name)
+  public static void Load_PNG_R8_NoMip(D12Device device, string loc, string name)
   {
     if (Path.GetExtension(loc) != ".png")
       throw new ArgumentException($"Bitmap isn't png format. loc={loc}");
