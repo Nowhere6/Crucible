@@ -5,6 +5,7 @@
   but you could only reference them from relative paths.
 
   Notice:
+  Shader Model = 5.0
   mtx = matrix
 */
 
@@ -46,7 +47,7 @@ struct UIPixelIn
 
 /*
   These are static samplers.
-  Some materials need the ability to choose the clamp or wrap address mode.
+  Some materials need the ability to choose whether the clamp or wrap address mode.
   Thus, use "Tri" or "Ani" instead, and define "VARIATION_CLAMP_WRAP" in your shader,
   then the engine will create two materials for it.
   (As for programmers, a material means a pipeline state in DX12)
@@ -56,7 +57,7 @@ SamplerState TriClamp : register(s1);
 SamplerState TriWrap : register(s2);
 SamplerState AniClamp : register(s3);
 SamplerState AniWrap : register(s4);
-SamplerComparisonState cmp : register(s5);
+SamplerComparisonState Cmp : register(s5);
 #ifdef CLAMP_ADDRESS
 #define Tri TriClamp
 #define Ani AniClamp
@@ -65,21 +66,36 @@ SamplerComparisonState cmp : register(s5);
 #define Ani AniWrap
 #endif
 
+/*
+  These are resources.
+
+  About Textures:
+  You SHOULD define your textures in your shader, following these RULES:
+  1 A texture cannot be used both in the VS and PS.
+  2 The texture register numbers used in the VS or PS must be successive and start from 0.
+
+  Tips:
+  1 Textures in an XML material file are bound based on their written order, not names.
+  2 If you ACTUALLY want to use a texture in both the VS and PS,
+    you can define two in your shader and bind two in your material.
+    only one texture will be loaded into memory for this.
+  3 These rules seem complicated but are necessary to reduce the overheads
+    of the root signature (one kind of DX12 object).
+*/
 cbuffer SuperObjectConsts : register(b0)
 {
   float4x4 mtxW;
   float4 color;
 };
-
 cbuffer SuperPassConsts : register(b1)
 {
   float4x4 mtxVP;
   float4 viewportSize; // w, h, 1/w, 1/h
 };
 
-Texture2D tex0 : register(t0);
-Texture2D tex1 : register(t1);
-
+/*
+  Functions
+*/
 float4 EncodeSRGB(float4 color)
 {
   float4 result;
