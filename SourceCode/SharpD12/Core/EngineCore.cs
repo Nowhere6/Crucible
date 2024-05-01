@@ -228,7 +228,7 @@ public partial class SD12Engine
   void PopulateCommandList()
   {
     frames[fence.FrameIndex].cmdAllocator.Reset();
-    cmdList.Reset(frames[fence.FrameIndex].cmdAllocator, PipelineStateManager.GetPSO(PSOType.PLACEHOLDER));
+    cmdList.Reset(frames[fence.FrameIndex].cmdAllocator, PipelineStateManager.GetPipelineConfig("NoLit.hlsl").pso);
 
     // Update default heaps.
     DefaultBufferUpdater.UpdateAll(cmdList, fence.TargetFence);
@@ -246,7 +246,7 @@ public partial class SD12Engine
     cmdList.SetRenderTargets(1, DescHeapManager.GetCPUHandle(frames[fence.FrameIndex].rtvIndex, ViewType.RTV), DescHeapManager.GetCPUHandle(FrameResource.dsvIndex, ViewType.DSV));
     DescHeapManager.BindSrvUavHeap(cmdList);
     cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
-    cmdList.SetGraphicsRootSignature(PipelineStateManager.GetRootSign(PSOType.PLACEHOLDER));
+    cmdList.SetGraphicsRootSignature(PipelineStateManager.GetPipelineConfig("NoLit.hlsl").sign);
     cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(fence.FrameIndex));
 
     // Draw static render items.
@@ -263,7 +263,8 @@ public partial class SD12Engine
 
     // Draw UI render items.
     cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleStrip;
-    cmdList.PipelineState = PipelineStateManager.GetPSO(PSOType.UI);
+    cmdList.PipelineState = PipelineStateManager.GetPipelineConfig("UI.hlsl").pso;
+    cmdList.SetGraphicsRootSignature(PipelineStateManager.GetPipelineConfig("UI.hlsl").sign);
     itemCount = uiRenderItems.Count;
     for (int index = 0; index < itemCount; index++)
     {

@@ -91,7 +91,7 @@ public partial class SD12Engine
     FrameResource.staticRenderItemObjectBuffer = new UploadBuffer<SuperObjectConsts>(dx12Device, MaxStaticRenderItems * SwapChainSize, true);
     FrameResource.uiRenderItemObjectBuffer = new UploadBuffer<SuperObjectConsts>(dx12Device, MaxUIRenderItems * SwapChainSize, true);
 
-    PipelineStateManager.Rebuild(dx12Device);
+    PipelineStateManager.Initialize(dx12Device);
   }
 
   void CreateFrames()
