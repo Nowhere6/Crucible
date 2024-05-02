@@ -220,14 +220,13 @@ public class DefaultBuffer<T> : IDisposable where T : struct
     if (bufferType != BufferDataType.Tex)
       throw new NotSupportedException("Only default buffer of texture can invoke this.");
 
-    int width = pixelWidth;
     var nativePtr = new NativePtr(data);
     var ptr = nativePtr.Get();
     for (int mip = 0; mip < mipCount; mip++)
     {
-      width >>= mip;
-      int rowPitch = width * pixelSize;
-      int depthPitch = rowPitch * width;
+      int rowPixelCount = pixelWidth >> mip;
+      int rowPitch = rowPixelCount * pixelSize;
+      int depthPitch = rowPixelCount * rowPitch;
       middleBuffer.uploadHeap.WriteToSubresource(mip, null, ptr, rowPitch, depthPitch);
       ptr += depthPitch;
     }
