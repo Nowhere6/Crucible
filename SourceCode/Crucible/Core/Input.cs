@@ -5,7 +5,7 @@ using SharpDX;
 using Linearstar.Windows.RawInput;
 using Linearstar.Windows.RawInput.Native;
 
-namespace SharpD12;
+namespace Crucible;
 
 public enum MiceButton
 {

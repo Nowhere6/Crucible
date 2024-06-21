@@ -7,7 +7,7 @@ using static System.BitConverter;
 using SharpDX;
 using Device = SharpDX.Direct3D12.Device;
 
-namespace SharpD12.UI;
+namespace Crucible.UI;
 
 public static class BitFont
 {
@@ -151,7 +151,7 @@ public static class BitFont
     }
 
     // Load bitmap.
-    Texture.Load_PNG_R8_NoMip(dx12Device, pngPath, Name);
+    Texture.Load_R8NoMip(dx12Device, pngPath, Name);
     bitmapName = Name;
   }
 

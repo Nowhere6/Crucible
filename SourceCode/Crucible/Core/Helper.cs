@@ -2,7 +2,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace SharpD12;
+namespace Crucible;
 
 /// <summary>
 /// Native pointer wrapper class, <b>should free GC handle manually by call Free().</b>
@@ -31,7 +31,7 @@ public class NativePtr
   /// </summary>
   public void Free() => handle.Free();
 
-  public IntPtr Get() => ptr;
+  public static implicit operator IntPtr(NativePtr nativePtr) => nativePtr.ptr;
 }
 
 public static class PathHelper

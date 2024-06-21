@@ -1,11 +1,10 @@
 using System;
 using System.Windows.Forms;
-using SharpDX;
 using SharpDX.Windows;
 using Linearstar.Windows.RawInput;
 
-namespace SharpD12;
-
+namespace Crucible;
+using System.Diagnostics;
 using System.Drawing;
 
 static class Program
@@ -77,12 +76,20 @@ public sealed class SD12Form : RenderForm
 
   protected override void WndProc(ref Message m)
   {
-    base.WndProc(ref m);
     const int WM_INPUT = 0x00FF;
+    const int WM_ENTERSIZEMOVE = 0x0231;
+    const int WM_EXITSIZEMOVE = 0x0232;
+    const int WM_MOVE = 0x0003;
+    const int WM_MOVING = 0x0216;
     if (m.Msg == WM_INPUT)
     {
       var data = RawInputData.FromHandle(m.LParam);
       inputEvent?.Invoke(data);
     }
+    else if (m.Msg == WM_MOVE || m.Msg == WM_MOVING)
+    {
+      // TODO: Update when windows is being resized and being moved.
+    }
+    base.WndProc(ref m);
   }
 }

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace SharpD12.UI;
+namespace Crucible.UI;
 
 static class UIManager
 {

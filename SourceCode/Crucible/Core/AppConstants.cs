@@ -1,7 +1,7 @@
 ﻿using SharpDX;
 using SharpDX.Direct3D;
 
-namespace SharpD12;
+namespace Crucible;
 
 public static class AppConstants
 {
