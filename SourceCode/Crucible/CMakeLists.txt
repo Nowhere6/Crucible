@@ -1,6 +1,6 @@
 file(GLOB SOURCES "*.cs" "Core/*.cs" "UI/*.cs")
 
-add_executable(SharpD12 ${SOURCES})
+add_executable(Crucible ${SOURCES})
 
 set(NUGET_REF "
   SharpDX_4.2.0;
@@ -14,9 +14,9 @@ set(NUGET_REF "
   AssimpNet_4.1.0
 ")
 
-target_compile_options(SharpD12 PRIVATE "/unsafe")
+target_compile_options(Crucible PRIVATE "/unsafe")
 
-set_target_properties(SharpD12 PROPERTIES
+set_target_properties(Crucible PROPERTIES
   WIN32_EXECUTABLE true
   VS_GLOBAL_UseWindowsForms true
   VS_PACKAGE_REFERENCES "${NUGET_REF}"
