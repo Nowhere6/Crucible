@@ -9,7 +9,7 @@ using D12Device = SharpDX.Direct3D12.Device;
 using D12ByteCode = SharpDX.Direct3D12.ShaderBytecode;
 using DCByteCode = SharpDX.D3DCompiler.ShaderBytecode;
 
-namespace SharpD12;
+namespace Crucible;
 
 public class PipelineConfig
 {
@@ -17,11 +17,13 @@ public class PipelineConfig
   public readonly RootSignature sign;
   public readonly int vsTexCount;
   public readonly int psTexCount;
+  public readonly int rtCount;
 
-  public PipelineConfig(PipelineState state, RootSignature _sign, int _vsTexCount, int _psTexCount)
+  public PipelineConfig(PipelineState state, RootSignature _sign, int _rtCount, int _vsTexCount, int _psTexCount)
   {
     pso = state;
     sign = _sign;
+    rtCount = _rtCount;
     vsTexCount = _vsTexCount;
     psTexCount = _psTexCount;
   }
@@ -99,7 +101,6 @@ public static class PipelineStateManager
     public void Close(Stream stream) => stream?.Dispose();
   }
 
-
   private static readonly StaticSamplerDescription[] commonSamplers = new StaticSamplerDescription[]
   {
     new StaticSamplerDescription() // Point-Clamp (Post-processing)
@@ -161,21 +162,18 @@ public static class PipelineStateManager
 
   public static void Initialize(D12Device device)
   {
-    string fileName;
+    LoadNewPSO(device, "NoLit.hlsl", true, true, false);
+    LoadNewPSO(device, "UI.hlsl", false, false, true);
+    LoadNewPSO(device, "GBuffer.hlsl", true, true, false);
+  }
 
-    fileName = "NoLit.hlsl";
+  static void LoadNewPSO(D12Device device, string fileName, bool zTest, bool zWrite, bool blend)
+  {
     CompileShader(out D12ByteCode vs, out D12ByteCode ps, fileName);
-    GetShaderInputInfo(out Type layoutType, out int vsTexCount, out int psTexCount, vs, ps);
+    GetShaderInputInfo(out Type layoutType, out int rtCount, out int vsTexCount, out int psTexCount, vs, ps);
     CreateSignature(out RootSignature rootSignature, device, vsTexCount, psTexCount);
-    CreatePSO(out PipelineState pso, device, rootSignature, typeof(Vertex), vs, ps, 1, true, true, false);
-    configs.Add(fileName, new PipelineConfig(pso, rootSignature, vsTexCount, psTexCount));
-
-    fileName = "UI.hlsl";
-    CompileShader(out vs, out ps, fileName);
-    GetShaderInputInfo(out layoutType, out vsTexCount, out psTexCount, vs, ps);
-    CreateSignature(out rootSignature, device, vsTexCount, psTexCount);
-    CreatePSO(out pso, device, rootSignature, typeof(UIVertex), vs, ps, 1, false, false, true);
-    configs.Add(fileName, new PipelineConfig(pso, rootSignature, vsTexCount, psTexCount));
+    CreatePSO(out PipelineState pso, device, rootSignature, layoutType, vs, ps, rtCount, zTest, zWrite, blend);
+    configs.Add(fileName, new PipelineConfig(pso, rootSignature, rtCount, vsTexCount, psTexCount));
   }
 
   static void CompileShader(out D12ByteCode vs, out D12ByteCode ps, string fileName)
@@ -202,11 +200,12 @@ public static class PipelineStateManager
     psResult.Dispose();
   }
 
-  static void GetShaderInputInfo(out Type layoutType, out int vsTexCount, out int psTexCount, in D12ByteCode vs, in D12ByteCode ps)
+  static void GetShaderInputInfo(out Type layoutType, out int rtCount, out int vsTexCount, out int psTexCount, in D12ByteCode vs, in D12ByteCode ps)
   {
     var vsReflection = new ShaderReflection(vs.Buffer);
     var psReflection = new ShaderReflection(ps.Buffer);
     layoutType = InputLayoutManager.GetLayoutType(vsReflection);
+    rtCount = psReflection.Description.OutputParameters;
     vsTexCount = GetSRVCount(vsReflection);
     psTexCount = GetSRVCount(psReflection);
     vsReflection.Dispose();
@@ -237,13 +236,21 @@ public static class PipelineStateManager
     rootParams.Add(new RootParameter(ShaderVisibility.All, new RootDescriptor(1, 0), RootParameterType.ConstantBufferView));
     if (vsTexCount > 0)
     {
-      var vsTextures = new DescriptorRange(DescriptorRangeType.ShaderResourceView, vsTexCount, 0);
-      rootParams.Add(new RootParameter(ShaderVisibility.All, new DescriptorRange[] { vsTextures }));
+      for(int i = 0;i < vsTexCount;i++)
+      {
+        // Multiple SRVs in one root table must be continuously, but we want to set each one seperately,
+        // Thus we make a root table for each SRV.
+        var vsTextures = new DescriptorRange(DescriptorRangeType.ShaderResourceView, 1, i);
+        rootParams.Add(new RootParameter(ShaderVisibility.Vertex, new DescriptorRange[] { vsTextures }));
+      }
     }
     if (psTexCount > 0)
     {
-      var psTextures = new DescriptorRange(DescriptorRangeType.ShaderResourceView, psTexCount, 0);
-      rootParams.Add(new RootParameter(ShaderVisibility.All, new DescriptorRange[] { psTextures }));
+      for (int i = 0; i < psTexCount; i++)
+      {
+        var psTextures = new DescriptorRange(DescriptorRangeType.ShaderResourceView, 1, i);
+        rootParams.Add(new RootParameter(ShaderVisibility.Pixel, new DescriptorRange[] { psTextures }));
+      }
     }
     var flags = RootSignatureFlags.AllowInputAssemblerInputLayout;
     var rootSignatureDesc = new RootSignatureDescription(flags, rootParams.ToArray(), commonSamplers);
