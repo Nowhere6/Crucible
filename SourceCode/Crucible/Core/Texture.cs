@@ -6,8 +6,6 @@ using SharpDX.WIC;
 using SharpDX.DXGI;
 using SharpDX.Direct3D12;
 using D12Device = SharpDX.Direct3D12.Device;
-using Microsoft.VisualBasic.Logging;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Crucible;
 
