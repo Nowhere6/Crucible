@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Left hand, y-axis-up
+
+using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -6,7 +8,7 @@ using Assimp;
 using SharpDX;
 using SharpDX.DXGI;
 
-namespace SharpD12;
+namespace Crucible;
 
 using SharpDX.Direct3D12;
 
@@ -49,7 +51,6 @@ public static class MeshManager
     PostProcessSteps.Triangulate
     | PostProcessSteps.GenerateSmoothNormals
     | PostProcessSteps.CalculateTangentSpace
-    | PostProcessSteps.MakeLeftHanded
     | PostProcessSteps.FlipWindingOrder
     | PostProcessSteps.FlipUVs;
 
@@ -67,10 +68,10 @@ public static class MeshManager
 
     foreach (int i in Enumerable.Range(0, vCount))
     {
-      vertices[i].position = Vector3.Multiply(new Vector3(mesh.Vertices[i].X, mesh.Vertices[i].Y, mesh.Vertices[i].Z), 0.1f);
-      vertices[i].normal = new Vector3(mesh.Normals[i].X, mesh.Normals[i].Y, mesh.Normals[i].Z);
-      //vertices[i].tangent = new Vector3(mesh.Tangents[i].X, mesh.Tangents[i].Y, mesh.Tangents[i].Z);
-      vertices[i].uv = new Vector2(vertices[i].position.X, 1 - vertices[i].position.Y);
+      vertices[i].position = new Vector3(mesh.Vertices[i].X, mesh.Vertices[i].Z, mesh.Vertices[i].Y);
+      vertices[i].normal = mesh.HasNormals ? new Vector3(mesh.Normals[i].X, mesh.Normals[i].Y, mesh.Normals[i].Z) : Vector3.Zero;
+      vertices[i].tangent = mesh.HasTangentBasis ? new Vector3(mesh.Tangents[i].X, mesh.Tangents[i].Y, mesh.Tangents[i].Z) : Vector3.Zero;
+      vertices[i].uv = mesh.HasTextureCoords(0) ? new Vector2(mesh.TextureCoordinateChannels[0][i].X, mesh.TextureCoordinateChannels[0][i].Y) : Vector2.Zero;
     }
 
     var idx = mesh.GetIndices();
@@ -185,11 +186,11 @@ public class StaticMesh : IDisposable
     // Build vertex buffer.
     vertices = _vertices;
     vertexCount = vertices.Length;
-    vertexBuffer = new DefaultBuffer<Vertex>(device, vertexCount * Utilities.SizeOf<Vertex>(), BufferDataType.VBIB, true);
+    vertexBuffer = new DefaultBuffer<Vertex>(device, vertexCount * Utilities.SizeOf<Vertex>(), BufferType.VertexOrIndexBuffer, true);
     vertexBuffer.Write(0, vertices);
     vertexBufferView = new VertexBufferView()
     {
-      BufferLocation = vertexBuffer.defaultHeap.GPUVirtualAddress,
+      BufferLocation = vertexBuffer.Heap.GPUVirtualAddress,
       StrideInBytes = Utilities.SizeOf<Vertex>(),
       SizeInBytes = vertexBuffer.Size
     };
@@ -197,11 +198,11 @@ public class StaticMesh : IDisposable
     // Build index buffer.
     indices = _indices;
     indexCount = indices.Length;
-    indexBuffer = new DefaultBuffer<uint>(device, indexCount * Utilities.SizeOf<uint>(), BufferDataType.VBIB, true);
+    indexBuffer = new DefaultBuffer<uint>(device, indexCount * Utilities.SizeOf<uint>(), BufferType.VertexOrIndexBuffer, true);
     indexBuffer.Write(0, indices);
     indexBufferView = new IndexBufferView()
     {
-      BufferLocation = indexBuffer.defaultHeap.GPUVirtualAddress,
+      BufferLocation = indexBuffer.Heap.GPUVirtualAddress,
       SizeInBytes = indexBuffer.Size,
       Format = Format.R32_UInt
     };
@@ -229,7 +230,7 @@ public class UIMesh : IDisposable
     // Build vertex buffer.
     vertices = _vertices;
     vertexCount = vertices.Length;
-    vertexBuffer = new UploadBuffer<UIVertex>(device, vertexCount, false);
+    vertexBuffer = new UploadBuffer<UIVertex>(device, vertexCount, BufferType.VertexOrIndexBuffer);
     vertexBuffer.Write(0, vertices);
     vertexBufferView = new VertexBufferView()
     {

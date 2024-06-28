@@ -1,7 +1,7 @@
 ﻿using System;
-using static SharpD12.AppConstants;
+using static Crucible.AppConstants;
 
-namespace SharpD12;
+namespace Crucible;
 
 public abstract class RenderItemBase : IDisposable
 {
@@ -23,6 +23,7 @@ public class StaticRenderItem : RenderItemBase
 {
   public StaticMesh mesh;
   public string albedoTex;
+  public string normalTex;
 
   public override void Dispose()
   {

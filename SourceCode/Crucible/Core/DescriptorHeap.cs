@@ -2,7 +2,7 @@ using System;
 using SharpDX.Direct3D12;
 using System.Collections.Generic;
 
-namespace SharpD12;
+namespace Crucible;
 
 /// <summary>Descriptor types.</summary>
 public enum ViewType
@@ -31,10 +31,9 @@ public static class DescHeapManager
   static Queue<ushort> dsvAvaliableIndex = new Queue<ushort>();
   static CpuDescriptorHandle srvUavCPUHandle_0;
   static GpuDescriptorHandle srvUavGPUHandle_0;
+  // RTV and DSV do not have gpu handle.
   static CpuDescriptorHandle rtvCPUHandle_0;
-  static GpuDescriptorHandle rtvGPUHandle_0;
   static CpuDescriptorHandle dsvCPUHandle_0;
-  static GpuDescriptorHandle dsvGPUHandle_0;
 
   public static void Initialize(Device dx12Device)
   {
@@ -59,12 +58,10 @@ public static class DescHeapManager
     heapDesc = new DescriptorHeapDescription { Type = heapType, DescriptorCount = MaxRtvCount };
     rtvDescHeap = dx12Device.CreateDescriptorHeap(heapDesc);
     rtvCPUHandle_0 = rtvDescHeap.CPUDescriptorHandleForHeapStart;
-    rtvGPUHandle_0 = rtvDescHeap.GPUDescriptorHandleForHeapStart;
     heapType = DescriptorHeapType.DepthStencilView;
-    heapDesc = new DescriptorHeapDescription { Type = heapType, DescriptorCount = MaxRtvCount };
+    heapDesc = new DescriptorHeapDescription { Type = heapType, DescriptorCount = MaxDsvCount };
     dsvDescHeap = dx12Device.CreateDescriptorHeap(heapDesc);
     dsvCPUHandle_0 = dsvDescHeap.CPUDescriptorHandleForHeapStart;
-    dsvGPUHandle_0 = dsvDescHeap.GPUDescriptorHandleForHeapStart;
   }
 
   public static void BindSrvUavHeap(GraphicsCommandList cmd) => cmd.SetDescriptorHeaps(srvUavDescHeap);
@@ -99,13 +96,8 @@ public static class DescHeapManager
       case ViewType.UAV:
         CheckIdx(MaxSrvUavCount);
         return srvUavGPUHandle_0 + SD12Engine.CSUSize * idx;
-      case ViewType.RTV:
-        CheckIdx(MaxRtvCount);
-        return rtvGPUHandle_0 + SD12Engine.RTVSize * idx;
-      case ViewType.DSV:
       default:
-        CheckIdx(MaxDsvCount);
-        return dsvGPUHandle_0 + SD12Engine.RTVSize * idx;
+        throw new InvalidOperationException();
     }
   }
 
