@@ -23,7 +23,9 @@ struct VertexIn
 struct VertexOut
 {
   float4 pos : SV_POSITION;
-  float2 uv : TEXCOORD;
+  float3 normal: TEXCOORD0;
+  float3 tangent: TEXCOORD1;
+  float2 uv : TEXCOORD2;
 };
 
 struct UIVertexIn
@@ -102,4 +104,14 @@ float4 EncodeSRGB(float4 color)
   result.rgb =  1.055*pow(color.rgb, 1.0/2.4) - 0.055;
   result.a = color.a;
   return result;
+}
+
+float3 GetWorldNormal(float3 value, float3 nW, float3 tW)
+{
+  nW = normalize(nW);
+  tW = normalize(tW - nW * dot(nW, tW));
+  float3x3 T2W = float3x3(tW, nW, cross(tW, nW));
+  value = 2 * value - 1;
+  value = normalize(mul(value, T2W));
+  return value;
 }

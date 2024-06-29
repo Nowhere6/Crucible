@@ -1,7 +1,5 @@
 #include "Common.hlsl"
 
-Texture2D bitmap : register(t0);
-
 float4 Screen2Perspective(float2 pos)
 {
   pos.y = viewportSize.y - pos.y;
@@ -16,6 +14,8 @@ UIVertexOut VS(UIVertexIn vin)
   vout.uv = vin.uv;
   return vout;
 }
+
+Texture2D bitmap : register(t0);
 
 float4 PS(UIPixelIn pin) : SV_Target
 {

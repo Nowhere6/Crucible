@@ -1,5 +1,7 @@
 #include "Common.hlsl"
 
+Texture2D albedo : register(t0);
+
 VertexOut VS(VertexIn vin)
 {
   VertexOut vout;
@@ -9,8 +11,6 @@ VertexOut VS(VertexIn vin)
   vout.uv = vin.uv;
   return vout;
 }
-
-Texture2D albedo : register(t0);
 
 float4 PS(VertexOut pin) : SV_Target
 {
