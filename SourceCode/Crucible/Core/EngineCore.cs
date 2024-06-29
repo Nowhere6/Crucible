@@ -8,14 +8,17 @@ using SharpDX.Windows;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using static SharpD12.AppConstants;
+using static Crucible.AppConstants;
 using D12Device = SharpDX.Direct3D12.Device;
 using D12Resource = SharpDX.Direct3D12.Resource;
 
-namespace SharpD12;
+namespace Crucible;
 
 public partial class SD12Engine
 {
+  bool vSyncEnabled = true;
+  bool enableDebugLayer = true;
+
   readonly Stopwatch gameClock = new Stopwatch();
   float lastTime = 0;
   float deltaTime = 0;
@@ -36,8 +39,6 @@ public partial class SD12Engine
   GraphicsCommandList cmdList;
   Factory4 factory = new Factory4();
 
-  bool vSyncEnabled = false;
-  bool enableDebugLayer = false;
   ViewportF viewPort;
   Rectangle scissorRectangle;
   private static int rtv_size;
@@ -45,7 +46,7 @@ public partial class SD12Engine
   private static int csu_size;
   public static int RTVSize { get => rtv_size; }
   public static int DSVSize { get => dsv_size; }
-  /// <summary> size of CBV SRV UAV </summary>
+  /// <summary> size of CBV or SRV or UAV </summary>
   public static int CSUSize { get => csu_size; }
 
   public void Run()
@@ -116,6 +117,7 @@ public partial class SD12Engine
     DepthStencilViewDescription dsvDesc = new DepthStencilViewDescription { Format = Format.D32_Float, Dimension = DepthStencilViewDimension.Texture2D };
     DescHeapManager.RemoveView(FrameResource.dsvIndex, ViewType.DSV);
     FrameResource.dsvIndex = DescHeapManager.CreateView(dx12Device, FrameResource.depthBuffer, dsvDesc, ViewType.DSV);
+    RenderPassResource.Reinitialize(dx12Device, width, height);
   }
 
   void Update()
@@ -228,7 +230,7 @@ public partial class SD12Engine
   void PopulateCommandList()
   {
     frames[fence.FrameIndex].cmdAllocator.Reset();
-    cmdList.Reset(frames[fence.FrameIndex].cmdAllocator, PipelineStateManager.GetPipelineConfig("NoLit.hlsl").pso);
+    cmdList.Reset(frames[fence.FrameIndex].cmdAllocator, PipelineStateManager.GetPipelineConfig("GBuffer.hlsl").pso);
 
     // Update default heaps.
     DefaultBufferUpdater.UpdateAll(cmdList, fence.TargetFence);
@@ -240,13 +242,20 @@ public partial class SD12Engine
     // Use barrier to notify that we are using the RenderTarget to clear it
     cmdList.ResourceBarrierTransition(frames[fence.FrameIndex].backBuffer, ResourceStates.Present, ResourceStates.RenderTarget);
 
-    cmdList.ClearRenderTargetView(DescHeapManager.GetCPUHandle(frames[fence.FrameIndex].rtvIndex, ViewType.RTV), CleanColor);
+    cmdList.ClearRenderTargetView(DescHeapManager.GetCPUHandle(frames[fence.FrameIndex].rtvIndex, ViewType.RTV), Color4.Black);
     cmdList.ClearDepthStencilView(DescHeapManager.GetCPUHandle(FrameResource.dsvIndex, ViewType.DSV), ClearFlags.FlagsDepth, 1.0f, 0);
+    RenderPassResource.CLeanAll(cmdList);
 
-    cmdList.SetRenderTargets(1, DescHeapManager.GetCPUHandle(frames[fence.FrameIndex].rtvIndex, ViewType.RTV), DescHeapManager.GetCPUHandle(FrameResource.dsvIndex, ViewType.DSV));
+    var rtvs = new CpuDescriptorHandle[]
+    {
+      DescHeapManager.GetCPUHandle(frames[fence.FrameIndex].rtvIndex, ViewType.RTV),
+      DescHeapManager.GetCPUHandle(RenderPassResource.Get(GBufferType.GBuffer0).rtvIndex, ViewType.RTV),
+      DescHeapManager.GetCPUHandle(RenderPassResource.Get(GBufferType.GBuffer1).rtvIndex, ViewType.RTV)
+    };
+    cmdList.SetRenderTargets(rtvs, DescHeapManager.GetCPUHandle(FrameResource.dsvIndex, ViewType.DSV));
     DescHeapManager.BindSrvUavHeap(cmdList);
     cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
-    cmdList.SetGraphicsRootSignature(PipelineStateManager.GetPipelineConfig("NoLit.hlsl").sign);
+    cmdList.SetGraphicsRootSignature(PipelineStateManager.GetPipelineConfig("GBuffer.hlsl").sign);
     cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(fence.FrameIndex));
 
     // Draw static render items.
@@ -256,6 +265,7 @@ public partial class SD12Engine
       var item = staticRenderItems[index];
       cmdList.SetGraphicsRootConstantBufferView(0, FrameResource.staticRenderItemObjectBuffer.GetGPUAddress(fence.FrameIndex * MaxStaticRenderItems + index));
       cmdList.SetGraphicsRootDescriptorTable(2, Texture.GetHandle(item.albedoTex));
+      cmdList.SetGraphicsRootDescriptorTable(3, Texture.GetHandle(item.normalTex));
       cmdList.SetVertexBuffer(0, item.mesh.vertexBufferView);
       cmdList.SetIndexBuffer(item.mesh.indexBufferView);
       cmdList.DrawIndexedInstanced(item.mesh.IndexCount, 1, 0, 0, 0);
@@ -265,6 +275,7 @@ public partial class SD12Engine
     cmdList.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleStrip;
     cmdList.PipelineState = PipelineStateManager.GetPipelineConfig("UI.hlsl").pso;
     cmdList.SetGraphicsRootSignature(PipelineStateManager.GetPipelineConfig("UI.hlsl").sign);
+    cmdList.SetGraphicsRootConstantBufferView(1, FrameResource.passBuffer.GetGPUAddress(fence.FrameIndex));
     itemCount = uiRenderItems.Count;
     for (int index = 0; index < itemCount; index++)
     {
