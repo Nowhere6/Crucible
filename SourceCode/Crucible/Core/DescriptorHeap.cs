@@ -154,7 +154,7 @@ public static class DescHeapManager
         rtvAvaliableIndex.Enqueue(idx); return;
       case ViewType.DSV:
       default:
-        if (srvUavAvaliableIndex.Contains(idx)) break;
+        if (dsvAvaliableIndex.Contains(idx)) break;
         dsvAvaliableIndex.Enqueue(idx); return;
     }
     throw new ArgumentException($"{viewType.ToString()} descriptor deletion failed.");
