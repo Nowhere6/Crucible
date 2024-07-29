@@ -52,16 +52,21 @@ public partial class SD12Engine
   public void Run()
   {
     EngineInitialize();
-
+    form.Show();
     Input.Register(form.Handle);
     var loop = new RenderLoop(form);
     while (loop.NextFrame())
     {
-      Resize(); Update(); Render();
-      fence.Synchronize(false);
+      LoopBody();
     }
     Input.UnRegister();
     loop.Dispose();
+  }
+
+  void LoopBody()
+  {
+    Resize(); Update(); Render();
+    fence.Synchronize(false);
   }
 
   /*void MemoryLeakExample()

@@ -15,12 +15,9 @@ static class Program
   [STAThread]
   static void Main()
   {
-    var form = new SD12Form();
-    form.SetClientSize(1920, 1080);
-    form.Show();
     try
     {
-      var engine = new SD12Engine(form);
+      var engine = new SD12Engine();
       engine.Run();
     }
     catch (Exception ex)
@@ -36,7 +33,9 @@ public sealed class SD12Form : RenderForm
   new bool IsFullscreen { get; }
   new bool AllowUserResizing { get; }
 
+  Timer timer;
   Rectangle prevWinRect;
+  Action LoopBody;
   Action<RawInputData> inputEvent;
   static Size minSize = new Size(400, 400);
 
@@ -47,6 +46,8 @@ public sealed class SD12Form : RenderForm
     MinimumSize = minSize;
     SetWindowMode(false);
   }
+
+  public void SetLoopBody(Action loopBody) => LoopBody = loopBody;
 
   /// <summary>
   ///  ClientSize excludes border size. 
@@ -79,16 +80,28 @@ public sealed class SD12Form : RenderForm
     const int WM_INPUT = 0x00FF;
     const int WM_ENTERSIZEMOVE = 0x0231;
     const int WM_EXITSIZEMOVE = 0x0232;
-    const int WM_MOVE = 0x0003;
-    const int WM_MOVING = 0x0216;
-    if (m.Msg == WM_INPUT)
+    switch (m.Msg)
     {
-      var data = RawInputData.FromHandle(m.LParam);
-      inputEvent?.Invoke(data);
-    }
-    else if (m.Msg == WM_MOVE || m.Msg == WM_MOVING)
-    {
-      // TODO: Update when windows is being resized and being moved.
+      case WM_INPUT:
+        var data = RawInputData.FromHandle(m.LParam);
+        inputEvent?.Invoke(data);
+        break;
+      /* 
+       * When users resize or move the form, the program will be trapped in a modal loop,
+       * which will stop our message loop, causing the engine not to run.
+       * Therefore, create a timer to run the engine.
+      */
+      case WM_ENTERSIZEMOVE:
+        timer = new Timer();
+        timer.Interval = 1000/50; //20ms
+        timer.Tick += (x, y) => LoopBody();
+        timer.Enabled = true;
+        break;
+      case WM_EXITSIZEMOVE:
+        timer.Enabled = false;
+        timer.Dispose();
+        timer = null;
+        break;
     }
     base.WndProc(ref m);
   }

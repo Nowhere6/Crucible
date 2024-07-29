@@ -12,9 +12,11 @@ namespace Crucible;
 
 public partial class SD12Engine
 {
-  public SD12Engine(SD12Form winForm)
+  public SD12Engine()
   {
-    form = winForm;
+    form = new SD12Form();
+    form.SetClientSize(1920, 1080);
+    form.SetLoopBody(LoopBody);
     width = form.ClientSize.Width;
     height = form.ClientSize.Height;
     form.SetInputEvent(Input.PerMessageProcess);
