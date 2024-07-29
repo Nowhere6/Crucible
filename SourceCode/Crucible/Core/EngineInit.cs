@@ -10,11 +10,11 @@ using D12Resource = SharpDX.Direct3D12.Resource;
 
 namespace Crucible;
 
-public partial class SD12Engine
+public partial class CrucibleEngine
 {
-  public SD12Engine()
+  public CrucibleEngine()
   {
-    form = new SD12Form();
+    form = new CustomedForm();
     form.SetClientSize(1920, 1080);
     form.SetLoopBody(LoopBody);
     width = form.ClientSize.Width;

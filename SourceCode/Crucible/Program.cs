@@ -17,7 +17,7 @@ static class Program
   {
     try
     {
-      var engine = new SD12Engine();
+      var engine = new CrucibleEngine();
       engine.Run();
     }
     catch (Exception ex)
@@ -27,7 +27,7 @@ static class Program
   }
 }
 
-public sealed class SD12Form : RenderForm
+public sealed class CustomedForm : RenderForm
 {
   // Hide useless properties.
   new bool IsFullscreen { get; }
@@ -39,7 +39,7 @@ public sealed class SD12Form : RenderForm
   Action<RawInputData> inputEvent;
   static Size minSize = new Size(400, 400);
 
-  public SD12Form() : base()
+  public CustomedForm() : base()
   {
     Size = minSize;
     Text = "DefaultTitle";

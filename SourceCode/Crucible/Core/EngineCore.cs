@@ -14,7 +14,7 @@ using D12Resource = SharpDX.Direct3D12.Resource;
 
 namespace Crucible;
 
-public partial class SD12Engine
+public partial class CrucibleEngine
 {
   bool vSyncEnabled = true;
   bool enableDebugLayer = true;
@@ -25,7 +25,7 @@ public partial class SD12Engine
 
   Vector3 cameraPos = new Vector3(-3, 3, -3);
   Vector3 cameraZAxis = new Vector3(1, -1, 1);
-  SD12Form form;
+  CustomedForm form;
 
   int width;
   int height;

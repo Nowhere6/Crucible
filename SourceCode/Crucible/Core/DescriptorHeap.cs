@@ -75,14 +75,14 @@ public static class DescHeapManager
       case ViewType.SRV:
       case ViewType.UAV:
         CheckIdx(MaxSrvUavCount);
-        return srvUavCPUHandle_0 + SD12Engine.CSUSize * idx;
+        return srvUavCPUHandle_0 + CrucibleEngine.CSUSize * idx;
       case ViewType.RTV:
         CheckIdx(MaxRtvCount);
-        return rtvCPUHandle_0 + SD12Engine.RTVSize * idx;
+        return rtvCPUHandle_0 + CrucibleEngine.RTVSize * idx;
       case ViewType.DSV:
       default:
         CheckIdx(MaxDsvCount);
-        return dsvCPUHandle_0 + SD12Engine.RTVSize * idx;
+        return dsvCPUHandle_0 + CrucibleEngine.RTVSize * idx;
     }
   }
 
@@ -95,7 +95,7 @@ public static class DescHeapManager
       case ViewType.SRV:
       case ViewType.UAV:
         CheckIdx(MaxSrvUavCount);
-        return srvUavGPUHandle_0 + SD12Engine.CSUSize * idx;
+        return srvUavGPUHandle_0 + CrucibleEngine.CSUSize * idx;
       default:
         throw new InvalidOperationException();
     }
