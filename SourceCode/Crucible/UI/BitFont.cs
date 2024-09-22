@@ -69,7 +69,7 @@ public static class BitFont
     // Deserialize binary data.
     using (var reader = new FileStream(fntPath, FileMode.Open, FileAccess.Read))
     {
-      byte[] buffer = new byte[6];
+      byte[] buffer = new byte[256];
       int posJump = 0;
 
       // header
@@ -88,7 +88,6 @@ public static class BitFont
       reader.Read(buffer, 0, 6);
       fontSize = ToInt16(buffer, 4);
       int fontNameSize = ToInt32(buffer, 0) - 14;
-      buffer = new byte[fontNameSize];
       posJump = 14 - 2; // "- 2" for fontSize field.
       reader.Position += posJump;
       reader.Read(buffer, 0, fontNameSize);
