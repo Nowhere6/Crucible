@@ -13,15 +13,13 @@ public static class BitFont
 {
   private class CharData
   {
-    public readonly Vector2 uvSize;
     public readonly Vector2 uvPos;
     public readonly Vector2 offset;
     public readonly float advance;
     public readonly Vector2 size;
 
-    public CharData(Vector2 uvPos, Vector2 uvSize, Vector2 size, Vector2 offset, float advance)
+    public CharData(Vector2 uvPos, Vector2 size, Vector2 offset, float advance)
     {
-      this.uvSize = uvSize;
       this.uvPos = uvPos;
       this.offset = offset;
       this.advance = advance;
@@ -123,15 +121,14 @@ public static class BitFont
       buffer = new byte[size_chars];
       reader.Read(buffer, 0, size_chars);
       int charCount = size_chars / 20;
-      for (int offset = 0; offset < maxIndex; offset += 20)
+      for (int i = 0; i < maxIndex; i += 20)
       {
-        char cha = Encoding.UTF32.GetString(buffer, offset, 4)[0];
-        Vector2 uvPos = new Vector2(ToInt16(buffer, offset + 4), ToInt16(buffer, offset + 6)) * uvPerPixel;
-        Vector2 size = new Vector2(ToInt16(buffer, offset + 8), ToInt16(buffer, offset + 10));
-        Vector2 uvSize = size * uvPerPixel;
-        Vector2 pixelOffset = new Vector2(ToInt16(buffer, offset + 12), ToInt16(buffer, offset + 14));
-        float advance = ToInt16(buffer, offset + 16);
-        CharData data = new CharData(uvPos, uvSize, size, pixelOffset, advance);
+        char cha = Encoding.UTF32.GetString(buffer, i, 4)[0];
+        Vector2 uvPos = new Vector2(ToInt16(buffer, i + 4), ToInt16(buffer, i + 6)) * uvPerPixel;
+        Vector2 size = new Vector2(ToInt16(buffer, i + 8), ToInt16(buffer, i + 10));
+        Vector2 offset = new Vector2(ToInt16(buffer, i + 12), ToInt16(buffer, i + 14));
+        float advance = ToInt16(buffer, i + 16);
+        CharData data = new CharData(uvPos, size, offset, advance);
         fontData.Add(cha, data);
       }
 
@@ -163,10 +160,8 @@ public static class BitFont
       throw new InvalidOperationException("BitFont class should be initialized before using it");
     // Get scale factor.
     float scale = 1;
-    if (size > 8)
-      scale = (float)size / fontSize;
-    else if (size > 0)
-      throw new ArgumentException("Font size must >= 9.");
+    if (size > 8) scale = (float)size / fontSize;
+    else if(size != 0) throw new ArgumentException("Font size must be at least 9.");
     // Prepare data.
     int count = text.Length;
     Vector2 currPos = Vector2.Zero;
@@ -198,11 +193,11 @@ public static class BitFont
       vertices[offset].pos = currPos + charData.offset * scale;
       vertices[offset].uv = charData.uvPos;
       vertices[offset + 1].pos = vertices[offset].pos + new Vector2(charData.size.X, 0) * scale;
-      vertices[offset + 1].uv = vertices[offset].uv + new Vector2(charData.uvSize.X, 0);
+      vertices[offset + 1].uv = vertices[offset].uv + new Vector2(charData.size.X * uvPerPixel, 0);
       vertices[offset + 2].pos = vertices[offset].pos + new Vector2(0, charData.size.Y) * scale;
-      vertices[offset + 2].uv = vertices[offset].uv + new Vector2(0, charData.uvSize.Y);
+      vertices[offset + 2].uv = vertices[offset].uv + new Vector2(0, charData.size.Y * uvPerPixel);
       vertices[offset + 3].pos = vertices[offset].pos + charData.size * scale;
-      vertices[offset + 3].uv = vertices[offset].uv + charData.uvSize;
+      vertices[offset + 3].uv = vertices[offset].uv + charData.size * uvPerPixel;
       currPos.X += charData.advance * scale;
     }
     return vertices;
