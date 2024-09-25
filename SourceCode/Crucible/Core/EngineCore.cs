@@ -52,6 +52,8 @@ public partial class CrucibleEngine
   public void Run()
   {
     EngineInitialize();
+
+    form.Icon = Properties.Resources.icon;
     form.Show();
     Input.Register(form.Handle);
     var loop = new RenderLoop(form);
