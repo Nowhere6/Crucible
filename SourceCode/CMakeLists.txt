@@ -5,6 +5,8 @@ set(CMAKE_DOTNET_SDK "Microsoft.NET.Sdk")
 # Target framework moniker
 set(CMAKE_DOTNET_TARGET_FRAMEWORK "net8.0-windows10.0.19041.0")
 
+set(CMAKE_CSharp_FLAGS "/nowarn:1701,1702,NU1701")
+
 project(CrucibleSolution LANGUAGES CSharp)
 
 add_subdirectory(Crucible)
