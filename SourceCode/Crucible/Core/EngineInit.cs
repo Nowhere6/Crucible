@@ -139,7 +139,7 @@ public partial class CrucibleEngine
     renderItem.objectConst = new SuperObjectConsts { world = Matrix.Identity };
     //renderItem.mesh = MeshManager.CreateBox(dx12Device, 1, 1, 1);
     // FRAME DROP because big upload heap.
-    renderItem.mesh = MeshManager.LoadExternalModel(dx12Device, "can.fbx");
+    renderItem.mesh = MeshManager.LoadExternalModel(dx12Device, "dragon.obj", 0.1f);
     renderItem.albedoTex = "Default";
     renderItem.normalTex = "Normal";
 

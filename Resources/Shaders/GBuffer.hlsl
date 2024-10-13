@@ -47,7 +47,7 @@ GBuffer PS(VertexOut pin)
 
   //output.backBuffer = float4(extraColor, 0);
   //output.backBuffer = float4(EncodeSRGB(albedo_s).rgb, 0);
-  output.backBuffer = EncodeSRGB(normal_m);//float4(pin.normal, 0);
+  output.backBuffer = EncodeSRGB(albedo_s);//EncodeSRGB(normal_m);//float4(pin.normal, 0);
   output.gBuffer0 = albedo_s;
   output.gBuffer1 = normal_m;
 

@@ -51,10 +51,10 @@ public static class MeshManager
     PostProcessSteps.Triangulate
     | PostProcessSteps.GenerateSmoothNormals
     | PostProcessSteps.CalculateTangentSpace
-    | PostProcessSteps.FlipWindingOrder
+    //| PostProcessSteps.FlipWindingOrder
     | PostProcessSteps.FlipUVs;
 
-  public static StaticMesh LoadExternalModel(Device device, string name)
+  public static StaticMesh LoadExternalModel(Device device, string name, float factor = 1)
   {
     Assimp.Scene scene = assimpCtx.ImportFile(PathHelper.GetPath(Path.Combine("Models", name)), flags);
     if (scene == null)
@@ -68,10 +68,11 @@ public static class MeshManager
 
     foreach (int i in Enumerable.Range(0, vCount))
     {
-      vertices[i].position = new Vector3(mesh.Vertices[i].X, mesh.Vertices[i].Z, mesh.Vertices[i].Y);
+      vertices[i].position = new Vector3(mesh.Vertices[i].X, mesh.Vertices[i].Y, mesh.Vertices[i].Z);
+      vertices[i].position *= factor;
       vertices[i].normal = mesh.HasNormals ? new Vector3(mesh.Normals[i].X, mesh.Normals[i].Y, mesh.Normals[i].Z) : Vector3.Zero;
       vertices[i].tangent = mesh.HasTangentBasis ? new Vector3(mesh.Tangents[i].X, mesh.Tangents[i].Y, mesh.Tangents[i].Z) : Vector3.Zero;
-      vertices[i].uv = mesh.HasTextureCoords(0) ? new Vector2(mesh.TextureCoordinateChannels[0][i].X, mesh.TextureCoordinateChannels[0][i].Y) : Vector2.Zero;
+      vertices[i].uv = mesh.HasTextureCoords(0) ? new Vector2(mesh.TextureCoordinateChannels[0][i].X, mesh.TextureCoordinateChannels[0][i].Y) : new Vector2(vertices[i].position.X, - vertices[i].position.Y);
     }
 
     var idx = mesh.GetIndices();

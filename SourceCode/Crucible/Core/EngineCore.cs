@@ -23,8 +23,8 @@ public partial class CrucibleEngine
   float lastTime = 0;
   float deltaTime = 0;
 
-  Vector3 cameraPos = new Vector3(-3, 3, -3);
-  Vector3 cameraZAxis = new Vector3(1, -1, 1);
+  Vector3 cameraPos = new Vector3(3, 3, -3);
+  Vector3 cameraZAxis = new Vector3(-1, -0.5f, 1);
   CustomedForm form;
 
   int width;
