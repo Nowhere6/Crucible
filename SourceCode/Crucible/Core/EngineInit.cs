@@ -147,7 +147,7 @@ public partial class CrucibleEngine
     var uiRenderItem = new UIRenderItem();
     uiRenderItems.Add(uiRenderItem);
     uiRenderItem.objectConst = new SuperObjectConsts { color = Vector4.One };
-    uiRenderItem.mesh = MeshManager.MakeSimpleTextMesh(dx12Device, $"Hello World! \nOriginal Font Size={UI.BitFont.FontSize}");
+    uiRenderItem.mesh = MeshManager.MakeSimpleTextMesh(dx12Device, $"Hello World! \nOriginal Font Size={UI.BitFont.FontSize} Name={UI.BitFont.Name}");
     uiRenderItem.tex = UI.BitFont.Name;
   }
 }

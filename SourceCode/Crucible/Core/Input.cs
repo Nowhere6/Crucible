@@ -70,7 +70,7 @@ public static class Input
 
   public static bool GetKeyUp(Keys key) => currKeys.ContainsKey(key) ? currKeys[key] == State.UP : false;
 
-  /// <summary> <b>⭐ Recommanded</b><br/>Is that key preseed down or pressed? </summary>
+  /// <summary> <b>⭐ Recommanded</b><br/>Is that key pressed down or pressed? </summary>
   public static bool GetKey(Keys key) => GetKeyPressed(key) || GetKeyDown(key);
 
   public static bool GetButtonNotPressed(MiceButton button) => currMice[button] == State.NOT_PRESSED;
@@ -81,7 +81,7 @@ public static class Input
 
   public static bool GetButtonUp(MiceButton button) => currMice[button] == State.UP;
 
-  /// <summary> <b>⭐ Recommanded</b><br/>Is that mouse button preseed down or pressed? </summary>
+  /// <summary> <b>⭐ Recommanded</b><br/>Is that mouse button pressed down or pressed? </summary>
   public static bool GetButton(MiceButton button) => GetButtonPressed(button) || GetButtonDown(button);
 
   /// <summary>
@@ -142,7 +142,7 @@ public static class Input
     else if (msg.Header.Type == RawInputDeviceType.Keyboard)
     {
       RawInputKeyboardData message = (RawInputKeyboardData)msg;
-      var key = (Keys)message.Keyboard.VirutalKey;
+      Keys key = (Keys)message.Keyboard.VirutalKey;
       // Add new key into dictionary.
       if (currKeys.ContainsKey(key) == false)
       {

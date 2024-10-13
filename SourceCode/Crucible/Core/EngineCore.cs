@@ -128,7 +128,8 @@ public partial class CrucibleEngine
   void Update()
   {
     UpdateTimer();
-    Input.Update(); DelayReleaseManager.Update(fence.CompletedFence);
+    Input.Update();
+    DelayReleaseManager.Update(fence.CompletedFence);
     UpdateRenderItems();
     UpdateDummyCamera();
   }
