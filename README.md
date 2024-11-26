@@ -3,7 +3,7 @@
 A C# mini engine powered by SharpDX, helping me learn DX12.
 
 > 2024/10/13 <br/>
-> This repository is deprecated, as I decided to use Mono Game, a powerful open-source C# engine, to continue my learning process.
+> This repository is deprecated, as I would continue to develop this in the future.
 <br/>
 
 ![Showcase](./showcase.png)
