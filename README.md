@@ -1,4 +1,4 @@
-# Crucible Engine
+# Mini Engine (Directx 12)
 ## Description
 A C# mini engine powered by SharpDX, helping me learn DX12.
 Core features:
