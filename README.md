@@ -1,6 +1,11 @@
 # Crucible Engine
 ## Description
 A C# mini engine powered by SharpDX, helping me learn DX12.
+Core features:
+- Shader Reflections
+- Heap Management
+- Mipmap Realtime Generation
+- Bitmap Font Rendering
 
 ![Showcase](./showcase.png)
 
